@@ -3,20 +3,16 @@
  * 圖示 key 對應 assets/workhorse/asset-manifest.json 的 reward_icons。
  */
 window.Defaults = (function () {
-  // 新增貨幣只要加一筆;rateToTWD 預留給日後匯率換算。
+  // 新增貨幣只要加一筆。
   const CURRENCIES = {
     TWD: { code: 'TWD', symbol: 'NT$', rateToTWD: 1 },
+    JPY: { code: 'JPY', symbol: '¥', rateToTWD: 0 },   // rateToTWD 預留,實際換算用即時匯率
+    PHP: { code: 'PHP', symbol: '₱', rateToTWD: 0 },
   };
+  // 國家 → 幣別;各國物價與法定薪資參考值在 prices.js
+  const COUNTRIES = ['TW', 'JP', 'PH'];
 
-  // 各縣市便當參考價(元)。僅供參考,非官方統計,可自行修改。
-  const CITY_LUNCH = {
-    '台北市': 110, '新北市': 100, '基隆市': 90, '桃園市': 95, '新竹市': 100, '新竹縣': 95,
-    '苗栗縣': 85, '台中市': 100, '彰化縣': 85, '南投縣': 85, '雲林縣': 80, '嘉義市': 85,
-    '嘉義縣': 80, '台南市': 90, '高雄市': 95, '屏東縣': 85, '宜蘭縣': 90, '花蓮縣': 90,
-    '台東縣': 90, '澎湖縣': 100, '金門縣': 100, '連江縣': 100,
-  };
-
-  const CATEGORIES = ['coffee', 'bento', 'drink', 'hotpot', 'fun', 'transit', 'goal'];
+  const CATEGORIES = ['coffee', 'bento', 'drink', 'hotpot', 'fun', 'transit', 'goal']; // 股票(stock)另有專屬流程
   const ICON_BY_CATEGORY = {
     coffee: 'coffee_to_go', bento: 'taiwanese_bento', drink: 'bubble_tea', hotpot: 'hotpot',
     fun: 'movie_ticket_popcorn', transit: 'metro_card', goal: 'travel_suitcase_passport',
@@ -34,8 +30,11 @@ window.Defaults = (function () {
     regularHours: 8,
     ot: { on: true, h1: 2, m1: 1.34, m2: 1.67 }, // 勞基法平日加班:前 2 小時 1.34 倍,之後 1.67 倍
     dailyGoal: 0, // 0 = 自動(時薪 × 正常工時,含倍率)
-    currency: 'TWD',
-    city: '台北市',
+    country: 'TW',
+    currency: 'TWD', // 由國家決定
+    wageTouched: false, // 使用者改過時薪 → 切換國家時不再自動換成當地最低工資
+    otTouched: false,
+    quoteProxy: '', // 股價查詢代理(選填)
     notifyEvery: 30, // 分鐘,0 = 關閉
     useSystemNotification: false,
     hideAmount: false,
@@ -43,15 +42,7 @@ window.Defaults = (function () {
     lastFinal: 0, // 最後一個已寫入流水帳的日子(內部使用)
   };
 
-  const ITEMS = [
-    { id: 'i1', category: 'coffee', nameKey: 'item.americano', name: '', price: 45, kind: 'consumable', icon: 'coffee_to_go', enabled: true },
-    { id: 'i2', category: 'coffee', nameKey: 'item.latte', name: '', price: 55, kind: 'consumable', icon: 'coffee_to_go', enabled: true },
-    { id: 'i3', category: 'bento', nameKey: 'item.bento', name: '', price: 100, kind: 'consumable', icon: 'taiwanese_bento', enabled: true },
-    { id: 'i4', category: 'drink', nameKey: 'item.boba', name: '', price: 55, kind: 'consumable', icon: 'bubble_tea', enabled: true },
-    { id: 'i5', category: 'hotpot', nameKey: 'item.hotpot', name: '', price: 269, kind: 'consumable', icon: 'hotpot', enabled: true },
-    { id: 'i6', category: 'fun', nameKey: 'item.movie', name: '', price: 300, kind: 'consumable', icon: 'movie_ticket_popcorn', enabled: true },
-    { id: 'i7', category: 'goal', nameKey: 'item.travel', name: '', price: 30000, saved: 0, kind: 'goal', icon: 'travel_suitcase_passport', enabled: true },
-  ];
+  const ITEMS = window.Prices.itemsFor('TW');
 
-  return { CURRENCIES, CITY_LUNCH, CATEGORIES, ICON_BY_CATEGORY, LEGACY_CATEGORY, REWARD_ICONS, SETTINGS, ITEMS };
+  return { CURRENCIES, COUNTRIES, CATEGORIES, ICON_BY_CATEGORY, LEGACY_CATEGORY, REWARD_ICONS, SETTINGS, ITEMS };
 })();

@@ -66,9 +66,12 @@
       <div class="card">
         <div class="row between">
           <h2 data-i18n="items.title">薪資換算器</h2>
-          <button class="btn small" id="btnAddItem" data-i18n="items.add">＋ 新增</button>
+          <div class="row">
+            <button class="btn small" id="btnAddStock" data-i18n="items.addStock">＋ 股票</button>
+            <button class="btn small" id="btnAddItem" data-i18n="items.add">＋ 新增</button>
+          </div>
         </div>
-        <label class="field inline"><span data-i18n="items.city">便當參考縣市</span><select id="citySelect"></select></label>
+        <label class="field inline"><span data-i18n="items.country">地區</span><select class="country-select" id="countrySelect"></select></label>
         <p class="note" data-i18n="items.note"></p>
       </div>
       <div id="itemList"></div>
@@ -104,6 +107,7 @@
     <section class="view" id="view-settings">
       <div class="card">
         <div class="row between"><h2 data-i18n="set.basic">基本設定</h2><button class="btn small" id="btnBackHome" data-i18n="set.done">完成</button></div>
+        <label class="field"><span data-i18n="items.country">地區</span><select class="country-select" id="countrySelect2"></select></label>
         <label class="field"><span><span data-i18n="set.hourly">時薪</span> (<em data-bind="cur">NT$</em>)</span>
           <input type="number" min="0" step="0.01" inputmode="decimal" data-set="hourly"></label>
         <div class="field"><span data-i18n="set.days">一週上哪幾天班</span><div class="chips" id="dayChips"></div></div>
@@ -132,6 +136,8 @@
         </div>
         <p class="note" data-i18n="set.otNote"></p>
         <label class="field"><span data-i18n="set.goal">每日目標</span><input type="number" min="0" step="1" data-set="dailyGoal"></label>
+        <label class="field"><span data-i18n="set.proxy">報價代理網址</span><input type="url" placeholder="https://" data-set="quoteProxy"></label>
+        <p class="note" data-i18n="set.proxyNote"></p>
       </details>
 
       <div class="card">
@@ -140,7 +146,6 @@
           <select data-set="notifyEvery" id="notifySelect"></select></label>
         <label class="check"><input type="checkbox" data-set="useSystemNotification"> <span data-i18n="set.sysNotify">系統通知</span></label>
         <label class="check"><input type="checkbox" data-set="hideAmount"> <span data-i18n="set.hide">隱藏金額</span></label>
-        <label class="field"><span data-i18n="set.currency">貨幣</span><select data-set="currency" id="currencySelect"></select></label>
       </div>
 
       <div class="card">
@@ -185,6 +190,29 @@
   </form>
 </dialog>
 
+<!-- 股票 -->
+<dialog id="stockDialog">
+  <form method="dialog" id="stockForm">
+    <h3 id="stockDialogTitle" data-i18n="stock.title">新增股票</h3>
+    <div class="grid2">
+      <label class="field"><span data-i18n="stock.market">市場</span><select name="market" id="stockMarket"></select></label>
+      <span></span>
+    </div>
+    <label class="field"><span data-i18n="stock.query">股票代碼或簡稱</span>
+      <span class="row"><input name="q" id="stockQuery" autocomplete="off" data-i18n-ph="stock.ph"><button type="button" class="btn small" id="btnStockSearch" data-i18n="stock.search">搜尋</button></span></label>
+    <div id="stockResults" class="results"></div>
+    <p class="note" id="stockStatus" data-i18n="stock.noPick"></p>
+    <label class="field"><span id="stockManualLabel"></span><input name="manual" type="number" min="0" step="any"></label>
+    <p class="note" data-i18n="stock.note"></p>
+    <div class="row end">
+      <button type="button" class="btn danger" id="btnDeleteStock" data-i18n="dlg.delete">刪除</button>
+      <span class="grow"></span>
+      <button type="button" class="btn" id="btnCancelStock" data-i18n="dlg.cancel">取消</button>
+      <button type="submit" class="btn primary" id="btnSubmitStock" data-i18n="stock.add">加入</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- 補登班次 -->
 <dialog id="shiftDialog">
   <form method="dialog" id="shiftForm">
@@ -216,9 +244,11 @@
 
 <script src="assets/workhorse/asset-manifest.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/prices.js"></script>
 <script src="js/defaults.js"></script>
 <script src="js/assets.js"></script>
 <script src="js/core.js"></script>
+<script src="js/stocks.js"></script>
 <script src="js/share.js"></script>
 <script src="js/app.js"></script>
 </body>

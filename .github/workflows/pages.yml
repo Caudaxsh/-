@@ -27,6 +27,8 @@ jobs:
           node tests/core.test.js
           node tests/assets.test.js
           node tests/i18n.test.js
+          node tests/prices.test.js
+          node tests/stocks.test.js
       - uses: actions/configure-pages@v5
         with:
           enablement: true

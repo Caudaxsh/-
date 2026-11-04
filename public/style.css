@@ -217,3 +217,16 @@ details.adv > summary::after { content: "＋"; color: var(--caramel-deep); }
 details.adv[open] > summary::after { content: "－"; }
 details.adv[open] > summary { margin-bottom: var(--sp-2); }
 .break-row .time-sep { color: var(--muted); }
+
+/* 股票 */
+.results { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
+.results button { display: flex; justify-content: space-between; gap: 8px; text-align: left; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; cursor: pointer; font: inherit; color: var(--ink); }
+.results button:hover, .results button.sel { border-color: var(--caramel); background: var(--caramel-soft); }
+.results small { color: var(--muted); white-space: nowrap; }
+.field .row { display: flex; gap: 6px; }
+.stock-meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.stock-meta.err { color: var(--bad); }
+.est { color: var(--muted); font-size: 11px; margin-right: 2px; }
+.sym { display: inline-block; font-size: 10px; padding: 0 6px; border-radius: 99px; background: var(--caramel-soft); color: var(--caramel-deep); margin-left: 4px; font-weight: 600; }
+
+#btnStockSearch { white-space: nowrap; flex: none; padding: 6px 14px; }

@@ -27,13 +27,18 @@ const app = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
 const used = new Set();
 for (const m of html.matchAll(/data-i18n(?:-title|-aria)?="([\w.]+)"/g)) used.add(m[1]);
 for (const m of app.matchAll(/\bt\('([\w.]+)'/g)) used.add(m[1]);
-for (const m of app.matchAll(/'((?:toast|q|until|next|item|hist|dlg|stats|set|share|phase|rate|worked|done|off|confirm)\.[\w.]+)'/g)) used.add(m[1]);
+for (const m of app.matchAll(/'((?:toast|q|until|next|item|hist|dlg|stats|set|share|phase|rate|worked|done|off|confirm|stock|items)\.[\w.]+)'/g)) used.add(m[1]);
 for (const k of used) if (!k.endsWith('.')) assert(D['zh-TW'][k] != null, 'unknown i18n key: ' + k);
 // 動態前綴
-for (const p of ['phase.', 'cat.', 'icon.', 'city.', 'wd.', 'cur.']) assert(base.some((k) => k.startsWith(p)), p);
-const defs = {}; vm.runInNewContext(fs.readFileSync(path.join(root, 'js/defaults.js'), 'utf8'), { window: defs });
-for (const c of Object.keys(defs.Defaults.CITY_LUNCH)) assert(D.en['city.' + c] && D.ja['city.' + c], 'city ' + c);
+for (const p of ['phase.', 'cat.', 'icon.', 'country.', 'wd.', 'cur.']) assert(base.some((k) => k.startsWith(p)), p);
+const defs = {}; vm.runInNewContext(fs.readFileSync(path.join(root, 'js/prices.js'), 'utf8') + ';' + fs.readFileSync(path.join(root, 'js/defaults.js'), 'utf8'), { window: defs });
 for (const c of defs.Defaults.CATEGORIES) assert(D.en['cat.' + c], 'cat ' + c);
 for (const k of defs.Defaults.REWARD_ICONS) assert(D.ja['icon.' + k], 'icon ' + k);
-for (const it of defs.Defaults.ITEMS) assert(D.en[it.nameKey], 'item name ' + it.nameKey);
+for (const code of defs.Defaults.COUNTRIES) {
+  assert(D.en['country.' + code] && D.ja['country.' + code], 'country ' + code);
+  for (const it of defs.Prices.COUNTRIES[code].items) for (const l of langs) assert(D[l][it.nameKey], `${l} item name ${it.nameKey}`);
+  assert(D['zh-TW']['cur.' + defs.Prices.COUNTRIES[code].currency], 'currency name ' + code);
+  assert(defs.Defaults.CURRENCIES[defs.Prices.COUNTRIES[code].currency], 'currency table ' + code);
+}
+for (const m of ['US', 'TW', 'JP']) assert(D.ja['stock.mkt.' + m], 'market ' + m);
 console.log(`i18n ok: ${base.length} keys × ${langs.length} langs, ${used.size} referenced`);

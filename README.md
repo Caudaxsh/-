@@ -15,12 +15,15 @@ public/                      網站根目錄
   js/core.js                 計算核心(時間戳為準,可在 Node 測試)
   js/defaults.js             預設設定與參考價格(都可在介面修改)
   js/i18n.js                 三語系文案(zh-TW / en / ja)
+  js/prices.js               各國物價與法定薪資參考值(含來源與估算標記)
+  js/stocks.js               股票代碼/簡稱查詢、收盤價解析、匯率換算
   js/assets.js               依 asset-manifest 載入素材
   js/share.js js/app.js      成果卡 / 介面
   assets/workhorse/          素材包(保留 brand/ icons/ mascot/ backgrounds/)
     asset-manifest.json      素材路徑唯一來源
     asset-manifest.js        由 json 自動產生(讓 file:// 也能用)
-tests/                       core / assets / i18n 測試
+tests/                       core / assets / i18n / prices / stocks 測試
+worker/quote-proxy.js        選用的報價代理(Cloudflare Worker)
 tools/build-manifest-js.js   修改 manifest.json 後執行,重新產生 .js
 ```
 素材只用獨立 PNG;所有金額、時間、價格與中文都是 HTML 文字。
@@ -41,5 +44,17 @@ tools/build-manifest-js.js   修改 manifest.json 後執行,重新產生 .js
 
 > 「薪資等值」只是累積工資的消費換算,不代表扣稅、扣除其他成本後的實際可支配金額。
 
+## 地區與物價
+右上角下方「買得起」或設定頁可選地區:**台灣 / 日本 / 菲律賓**。切換後幣別(NT$ / ¥ / ₱)、換算項目的價格、(沒手動改過的)時薪與加班倍率都會換成該國參考值;你自己新增的項目與股票會用匯率換算。
+價格是 2026 年底查到的參考值,資料與來源寫在 `public/js/prices.js`。**標「約」的是估算**(沒查到可靠數字;菲律賓大多是估算),都可以自己改。
+
+## 股票換算
+「買得起」→「＋ 股票」:選市場(美股/台股/日股),輸入代碼或簡稱(例:`2330`、`台積電`、`AAPL`、`輝達`、`7203`、`トヨタ`),會抓**最近一個已收盤交易日的收盤價**,依匯率換成你的幣別,告訴你「現在能買幾股」與「還要工作多久才買得起一股」。
+- 資料來源:Yahoo Finance 公開 chart API(代碼/匯率查詢);匯率來自 open.er-api.com,失敗時改用 Yahoo 匯率對。
+- 連線順序:自訂代理 → 直連 → 公共 CORS 代理(corsproxy.io)。只會送出股票代碼與幣別,不含任何薪資資料。
+- **抓不到時**(被瀏覽器擋、離線、查無此股):可在對話框手動輸入每股價格;已有舊報價時更新失敗會保留舊價格並提示。
+- 若直連常被 CORS 擋,可自架 `worker/quote-proxy.js`(Cloudflare Worker,免費額度足夠),把網址填到「設定 → 進階 → 報價代理網址」。
+- 股價僅供「要工作多久」的概略參考,不是投資建議。
+
 ## 測試
-`node tests/core.test.js && node tests/assets.test.js && node tests/i18n.test.js`
+`for t in core assets i18n prices stocks; do node tests/$t.test.js; done`
