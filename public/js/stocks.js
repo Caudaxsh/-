@@ -25,7 +25,7 @@
     A('00919', 'TW', '群益台灣精選高息'), A('00929', 'TW', '復華台灣科技優息'), A('006208', 'TW', '富邦台50', 'Fubon Taiwan 50'), A('00713', 'TW', '元大台灣高息低波'),
     // 美股
     A('AAPL', 'US', 'Apple', '蘋果', 'アップル'), A('MSFT', 'US', 'Microsoft', '微軟', 'マイクロソフト'), A('NVDA', 'US', 'NVIDIA', '輝達', '英偉達', 'エヌビディア'),
-    A('GOOGL', 'US', 'Alphabet', 'Google', '谷歌', 'グーグル'), A('AMZN', 'US', 'Amazon', '亞馬遜', 'アマゾン'), A('META', 'US', 'Meta', 'Facebook', '臉書', 'メタ'),
+    A('GOOGL', 'US', 'Alphabet', 'Google', '谷歌', 'グーグル'), A('GOOG', 'US', 'Alphabet C', 'Google C', 'Alphabet Class C'), A('AMZN', 'US', 'Amazon', '亞馬遜', 'アマゾン'), A('META', 'US', 'Meta', 'Facebook', '臉書', 'メタ'),
     A('TSLA', 'US', 'Tesla', '特斯拉', 'テスラ'), A('AVGO', 'US', 'Broadcom', '博通'), A('NFLX', 'US', 'Netflix', '網飛', 'ネットフリックス'), A('AMD', 'US', 'AMD', '超微'),
     A('INTC', 'US', 'Intel', '英特爾', 'インテル'), A('TSM', 'US', 'TSMC ADR', '台積電ADR', '台積電 ADR'), A('BRK-B', 'US', 'Berkshire', '波克夏', 'バークシャー'),
     A('JPM', 'US', 'JPMorgan', '摩根大通'), A('V', 'US', 'Visa'), A('MA', 'US', 'Mastercard', '萬事達'), A('WMT', 'US', 'Walmart', '沃爾瑪'),

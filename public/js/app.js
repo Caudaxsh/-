@@ -860,10 +860,8 @@
       if (seq === searchSeq) setStatus(t('stock.fail'));
     }
   }
-  async function doStockSearch() {
-    const q = sForm.q.value.trim();
-    if (!q) return;
-    const mk = sForm.market.value;
+  /** 在指定市場搜尋:資料檔(官方簡稱/代碼)→ 別名(中日英俗稱)→ 直接當代碼 */
+  function searchIn(q, mk) {
     let results = ST.dataSearch(marketData(), q, [mk]);
     for (const r of ST.search(q, mk)) if (r.market === mk && !results.some((x) => x.symbol === r.symbol)) results.push(r);
     const direct = ST.normalizeSymbol(mk, q);
@@ -871,7 +869,27 @@
       const d = ST.dataQuote(marketData(), direct);
       results.unshift(d ? { symbol: d.symbol, market: mk, name: d.name } : { symbol: direct, market: mk, name: direct });
     }
-    results = results.slice(0, 8);
+    // 完整代碼要優先:輸入 GOOG 不能先選到 GOOGL
+    const exact = (r) => direct && (r.symbol === direct || r.symbol === direct.replace(/\.TW$/, '.TWO'));
+    results.sort((a, b) => (exact(b) ? 1 : 0) - (exact(a) ? 1 : 0));
+    return { results: results.slice(0, 8), direct };
+  }
+  async function doStockSearch() {
+    const q = sForm.q.value.trim();
+    if (!q) return;
+    const mk0 = sForm.market.value;
+    // 先找選定的市場;找不到再找這個國家允許的其他市場(例如在「台股」輸入 GOOG,自動改查美股)
+    let mk = mk0, found = searchIn(q, mk0);
+    if (!found.results.length || (found.results.length === 1 && found.results[0].name === found.results[0].symbol && !ST.dataQuote(marketData(), found.results[0].symbol))) {
+      for (const m of allowedMarkets()) {
+        if (m === mk0) continue;
+        const f = searchIn(q, m);
+        if (f.results.length && !(f.results.length === 1 && f.results[0].name === f.results[0].symbol && !ST.dataQuote(marketData(), f.results[0].symbol))) { mk = m; found = f; break; }
+      }
+    }
+    let results = found.results;
+    const direct = found.direct;
+    if (mk !== mk0) { fillMarkets(); sForm.market.value = mk; }
     const draw = () => {
       lastResults = results;
       $('#stockResults').innerHTML = results.map((r) => `<button type="button" data-sym="${esc(r.symbol)}"><span>${esc(r.name)}</span><small>${esc(r.symbol)}・${t('stock.mkt.' + r.market)}</small></button>`).join('');
@@ -883,7 +901,8 @@
       draw();
       if (!results.length) { setStatus(t('stock.noResult')); return; }
     }
-    if (results.length === 1 || (direct && results[0].symbol.startsWith(direct.replace(/\.TWO?$/, '')))) pickStock(results[0]); else setStatus(baseHint());
+    const isExact = direct && (results[0].symbol === direct || results[0].symbol === direct.replace(/\.TW$/, '.TWO'));
+    if (results.length === 1 || isExact) pickStock(results[0]); else setStatus(baseHint());
   }
   $('#btnStockSearch').onclick = doStockSearch;
   sForm.q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doStockSearch(); } });

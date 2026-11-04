@@ -1,7 +1,8 @@
 // 每日在 GitHub Actions 上執行:抓公開資料,產生 public/data/market.json(網站只讀同網域檔案,不需跨站請求)。
 //
 // 台股:臺灣證券交易所 OpenAPI(上市)+ 證券櫃檯買賣中心 OpenAPI(上櫃)— 官方、全部個股與 ETF 的官方簡稱與收盤價
-// 美股/日股:沒有免費的官方交易所 API → Yahoo Finance chart API 取最近一個已收盤交易日收盤價,並用 Stooq 交叉核對(差距 < 2% 標記為一致)
+// 美股/日股:沒有免費的官方交易所 API → Yahoo Finance chart API 取最近一個已收盤交易日收盤價(Stooq 可用時交叉核對)
+//   涵蓋範圍:S&P 500 全部成分股 + 常見 ETF + 約 110 檔日股 + tools/extra-symbols.txt 自訂代碼(見 tools/universe.mjs)
 // 匯率:Yahoo Finance(USDTWD=X 等),失敗改用 open.er-api.com
 //
 // 用法:node tools/fetch-market-data.mjs public/data/market.json
@@ -9,6 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { parseSp500Csv, parseExtra, mergeUnique, US_ETFS, JP_STOCKS } from './universe.mjs';
 
 const require = createRequire(import.meta.url);
 const Stocks = require('../public/js/stocks.js');
@@ -121,29 +123,48 @@ async function stooqBatch(syms) {
   }
   return out;
 }
-async function fetchCurated(mkt) {
-  const aliases = Stocks.ALIASES.filter((a) => a.mkt === mkt);
-  const stooqSym = (a) => (mkt === 'US' ? a.sym.replace('-', '.') + '.US' : a.sym + '.JP');
-  const stooq = await stooqBatch(aliases.map(stooqSym));
-  log(mkt, 'Stooq hits', Object.keys(stooq).length, '/', aliases.length);
+/** 簡單併發池:同時跑 n 個,每個之間留一點間隔 */
+async function pool(items, n, fn) {
+  let i = 0;
+  const workers = Array.from({ length: n }, async () => {
+    while (i < items.length) { const it = items[i++]; await fn(it); await new Promise((r) => setTimeout(r, 80)); }
+  });
+  await Promise.all(workers);
+}
+async function loadUniverse() {
+  const extra = parseExtra(fs.existsSync('tools/extra-symbols.txt') ? fs.readFileSync('tools/extra-symbols.txt', 'utf8') : '');
+  let sp500 = [];
+  try { sp500 = parseSp500Csv(await get('https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv', { text: true })); log('S&P 500 list', sp500.length); }
+  catch (e) { log('S&P 500 list failed:', e.message); }
+  const alias = (mkt) => Stocks.ALIASES.filter((a) => a.mkt === mkt).map((a) => [a.sym, a.names[0]]);
+  return {
+    US: mergeUnique(extra.us, alias('US'), US_ETFS, sp500),
+    JP: mergeUnique(extra.jp, alias('JP'), JP_STOCKS),
+  };
+}
+async function fetchCurated(mkt, universe) {
+  const syms = universe[mkt];
+  const stooqSym = (sym) => (mkt === 'US' ? sym.replace('-', '.') + '.US' : sym + '.JP');
+  const stooq = syms.length <= 120 ? await stooqBatch(syms.map(([sym]) => stooqSym(sym))) : {}; // Stooq 只在小清單時核對(它在 GitHub 伺服器上常不可用)
+  log(mkt, 'universe', syms.length, '| Stooq hits', Object.keys(stooq).length);
   const list = [];
   let yOk = 0, agree = 0, disagree = 0;
-  for (const a of aliases) {
-    const ysym = a.sym + Stocks.MARKETS[mkt].suffix;
+  await pool(syms, 6, async ([sym, name]) => {
+    const ysym = sym + Stocks.MARKETS[mkt].suffix;
     let y = null;
-    try { y = await yahooClose(ysym); yOk++; } catch (e) { /* 下面用 Stooq */ }
-    const s = stooq[stooqSym(a).toUpperCase()];
+    try { y = await yahooClose(ysym); yOk++; } catch (e) { /* 略過查不到的代碼 */ }
+    const s = stooq[stooqSym(sym).toUpperCase()];
     let row = null;
     if (y && s) {
       const same = s.date === y.date && Math.abs(s.close - y.close) / y.close < 0.02;
       if (same) agree++; else { disagree++; log('mismatch', ysym, 'yahoo', y.close, y.date, 'stooq', s.close, s.date); }
-      row = [a.sym, a.names[0], y.close, y.date, same ? 'Yahoo+Stooq' : 'Yahoo'];
-    } else if (y) row = [a.sym, a.names[0], y.close, y.date, 'Yahoo'];
-    else if (s) row = [a.sym, a.names[0], s.close, s.date, 'Stooq'];
+      row = [sym, name, y.close, y.date, same ? 'Yahoo+Stooq' : 'Yahoo'];
+    } else if (y) row = [sym, name, y.close, y.date, 'Yahoo'];
+    else if (s) row = [sym, name, s.close, s.date, 'Stooq'];
     if (row) list.push(row);
-    await new Promise((r) => setTimeout(r, 150)); // 禮貌性間隔
-  }
-  log(mkt, `rows ${list.length}/${aliases.length}, yahoo ok ${yOk}, agree ${agree}, mismatch ${disagree}`);
+  });
+  list.sort((a, b) => syms.findIndex((x) => x[0] === a[0]) - syms.findIndex((x) => x[0] === b[0]));
+  log(mkt, `rows ${list.length}/${syms.length}, yahoo ok ${yOk}, agree ${agree}, mismatch ${disagree}`);
   return list.length ? { list } : null;
 }
 
@@ -160,7 +181,8 @@ async function fetchFx() {
   return null;
 }
 
-const [tw, us, jp, fx] = await Promise.all([fetchTW(), fetchCurated('US'), fetchCurated('JP'), fetchFx()]);
+const universe = await loadUniverse();
+const [tw, us, jp, fx] = await Promise.all([fetchTW(), fetchCurated('US', universe), fetchCurated('JP', universe), fetchFx()]);
 const data = { v: 1, generatedAt: new Date().toISOString(), tw, us, jp, fx };
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, JSON.stringify(data));

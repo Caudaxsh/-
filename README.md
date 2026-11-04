@@ -54,7 +54,8 @@ tools/build-manifest-js.js   修改 manifest.json 後執行,重新產生 .js
 ## 股票換算(資料來源)
 「買得起」→「＋ 股票」:輸入代碼或簡稱(例:`2330`、`台積電`、`環球晶`、`AAPL`、`輝達`、`7203`、`トヨタ`)。各國可選的市場:台灣=台股+美股、日本=日股+美股、菲律賓=美股(PSE 暫不支援)。
 - **台股:臺灣證券交易所 OpenAPI(上市)+ 證券櫃檯買賣中心 OpenAPI(上櫃)**,官方資料,含全部個股與 ETF 的官方簡稱與收盤價。
-- **美股/日股**:沒有免費的官方交易所 API,改用 Yahoo Finance 取得收盤價,並與 Stooq 交叉核對(一致時標示「交叉核對一致」)。
+- **美股/日股**:沒有免費的官方交易所 API,改用 Yahoo Finance 取得收盤價(Stooq 可用時會交叉核對)。涵蓋 **S&P 500 全部成分股**、常見 ETF(SPY、VOO、QQQ、SCHD…)、約 110 檔日股。
+- **不在清單裡的代碼**(例如小型股、其他 ETF):把代碼加進 `tools/extra-symbols.txt`(一行一個,日股寫 `7203.T`),推送後下次部署就會納入。在那之前,卡片會提示你按「編輯」手動輸入價格。
 - 這些資料由 GitHub Actions 在**每個交易日收盤後**抓取(`tools/fetch-market-data.mjs`),存成網站自己的 `data/market.json`;瀏覽器只讀同網域檔案,不需跨站請求(Safari 也不會擋)。
 - 資料檔裡沒有的代碼,才會即時向 Yahoo 查詢,並標示「即時查詢(非官方)」;抓不到時可手動輸入價格。
 - 卡片上會標出收盤日期與資料來源。股價僅供「要工作多久」的概略參考,不是投資建議。
@@ -65,4 +66,4 @@ tools/build-manifest-js.js   修改 manifest.json 後執行,重新產生 .js
 - 手動清除:iPhone 設定 → Safari → 進階 → 網站資料 → 搜尋 `github.io` → 刪除;Mac Safari:設定 → 隱私權 → 管理網站資料。
 
 ## 測試
-`for t in core assets i18n prices stocks; do node tests/$t.test.js; done`
+`for t in core assets i18n prices stocks; do node tests/$t.test.js; done; node tests/universe.test.mjs`

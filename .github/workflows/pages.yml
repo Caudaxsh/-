@@ -27,7 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run tests
-        run: for t in core assets i18n prices stocks; do node tests/$t.test.js; done
+        run: |
+          for t in core assets i18n prices stocks; do node tests/$t.test.js; done
+          node tests/universe.test.mjs
       - name: Fetch daily market data (TWSE / TPEx official OpenAPI, Yahoo + Stooq)
         continue-on-error: true
         run: node tools/fetch-market-data.mjs public/data/market.json
