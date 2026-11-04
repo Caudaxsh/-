@@ -39,6 +39,7 @@ window.Defaults = (function () {
     notifyEvery: 30, // 分鐘,0 = 關閉
     useSystemNotification: false,
     hideAmount: false,
+    nextTarget: 'auto', // 首頁「下一個目標」卡追蹤哪個項目('auto' = 最快能換到的;否則是項目 id)
     lang: '', // 空字串 = 依瀏覽器語言
     lastFinal: 0, // 最後一個已寫入流水帳的日子(內部使用)
   };

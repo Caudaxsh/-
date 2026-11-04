@@ -60,7 +60,11 @@
         <button class="btn small" id="btnOtReset" hidden data-i18n="q.otReset">重設</button>
       </div>
 
-      <button class="card next" id="nextReward"><span class="next-ico"></span><span class="next-text"></span></button>
+      <div class="card next" id="nextReward">
+        <button class="next-body" id="nextOpen" type="button"><span id="nextBody"></span></button>
+        <div class="next-bar"><i id="nextBar"></i></div>
+        <div class="next-foot"><button class="link-btn" id="btnPickNext" type="button" data-i18n="next.change">自訂</button></div>
+      </div>
     </section>
 
     <!-- 換算 -->
@@ -228,6 +232,13 @@
       <button type="submit" class="btn primary" id="btnSubmitStock" data-i18n="stock.add">加入</button>
     </div>
   </form>
+</dialog>
+
+<!-- 首頁「下一個目標」自訂 -->
+<dialog id="nextDialog">
+  <h3 data-i18n="next.pick">選擇首頁要追蹤的目標</h3>
+  <div id="nextOptions" class="pick-list" role="radiogroup"></div>
+  <div class="row end"><span class="grow"></span><button type="button" class="btn" id="btnCloseNext" data-i18n="share.close">關閉</button></div>
 </dialog>
 
 <!-- 補登班次 -->

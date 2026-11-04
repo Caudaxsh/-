@@ -153,6 +153,17 @@
     return best;
   }
 
+  /** 首頁「下一個目標」:使用者選了就追蹤那一項;選「自動」或該項已刪除/停用,就挑最快能換到的 */
+  function nextInfo(T) {
+    const id = settings.nextTarget;
+    if (id && id !== 'auto') {
+      const it = items.find((i) => i.id === id && i.enabled !== false);
+      if (it && it.price > 0) return { it, p: C.itemProgress(T, it), chosen: true };
+    }
+    const g = nearestReward(T);
+    return g ? { ...g, chosen: false } : null;
+  }
+
   let lastNext = '';
   let lastNotifyBucket = null;
   function tick() {
@@ -209,17 +220,26 @@
     const mi = $('#mascot');
     if (mi.getAttribute('src') !== m) mi.setAttribute('src', m);
 
-    // 下一個換算目標
-    const g = nearestReward(T);
-    let html;
+    // 下一個換算目標(可自訂)
+    const g = nextInfo(T);
+    let html, ratio = 0;
     if (g) {
-      const pre = g.p.later || T.phase === 'off' ? t('next.pre.later') : T.phase === 'before' ? t('next.pre.before') : '';
-      const text = t(g.p.kind === 'goal' ? 'next.goal' : 'next.consumable', { pre, time: dur(g.p.minutes), name: esc(itemName(g.it)) });
-      html = `<span class="next-ico">${iconHTML(g.it)}</span><span class="next-text">${text}</span>`;
+      const { it, p } = g;
+      const name = esc(itemName(it));
+      const pre = p.later || T.phase === 'off' ? t('next.pre.later') : T.phase === 'before' ? t('next.pre.before') : '';
+      let text;
+      if (p.invalid || (!p.unlocked && !isFinite(p.minutes))) text = t('next.noEstimate', { name });
+      else if (it.kind === 'goal' && (p.unlocked || it.done)) { text = t('next.goalReached', { name }); ratio = 1; }
+      else {
+        text = t(it.kind === 'goal' ? 'next.goal' : it.kind === 'stock' ? 'next.stock' : 'next.consumable', { pre, time: dur(p.minutes), name });
+        ratio = Math.max(0, Math.min(1, p.ratio || 0));
+      }
+      html = `<span class="next-ico">${iconHTML(it)}</span><span class="next-text">${text}</span>`;
     } else {
       html = `<span class="next-ico">${A.img('brand.coffee_cup_illustration')}</span><span class="next-text">${t(items.length ? 'next.allDone' : 'next.none')}</span>`;
     }
-    if (html !== lastNext) { $('#nextReward').innerHTML = html; lastNext = html; }
+    if (html !== lastNext) { $('#nextBody').innerHTML = html; lastNext = html; }
+    $('#nextBar').style.width = (ratio * 100).toFixed(1) + '%';
 
     if ($('#view-rewards').classList.contains('active')) updateItems(T);
     maybeNotify(T);
@@ -301,7 +321,26 @@
   $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (b) showView(b.dataset.view); };
   $('#btnSettings').onclick = () => showView('settings');
   $('#btnBackHome').onclick = () => showView('home');
-  $('#nextReward').onclick = () => showView('rewards');
+  $('#nextOpen').onclick = () => showView('rewards');
+
+  /* ---------- 首頁「下一個目標」自訂 ---------- */
+  const nextDlg = $('#nextDialog');
+  function renderNextOptions() {
+    const pickable = items.filter((i) => i.enabled !== false && i.price > 0);
+    const cur0 = pickable.some((i) => i.id === settings.nextTarget) ? settings.nextTarget : 'auto'; // 追蹤的項目已停用/刪除 → 實際上是「自動」
+    const row = (id, ico, name, sub, price) => `<button type="button" class="pick-row" role="radio" aria-checked="${cur0 === id}" data-id="${esc(id)}">
+      <span class="pk-ico">${ico}</span><span><span class="pk-name">${name}</span><br><span class="pk-sub">${sub}</span></span><span class="pk-price">${price}</span></button>`;
+    $('#nextOptions').innerHTML = row('auto', A.img('brand.coffee_cup_illustration'), esc(t('next.auto')), esc(t('next.autoHint')), '')
+      + pickable.map((it) => row(it.id, iconHTML(it), esc(itemName(it)), esc(catName(it.category)) + (it.kind === 'goal' ? t('item.goalTag') : ''), (it.est && !it.priceEdited ? t('item.est') : '') + money0(it.price) + (it.kind === 'stock' ? t('item.perShare') : ''))).join('');
+  }
+  $('#btnPickNext').onclick = () => { renderNextOptions(); nextDlg.showModal(); };
+  $('#btnCloseNext').onclick = () => nextDlg.close();
+  $('#nextOptions').addEventListener('click', (e) => {
+    const b = e.target.closest('.pick-row');
+    if (!b) return;
+    settings.nextTarget = b.dataset.id;
+    saveAll(); lastNext = ''; tick(); nextDlg.close();
+  });
 
   /* ---------- 換算項目 ---------- */
   function itemSummary(p, it) {

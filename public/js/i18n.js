@@ -30,6 +30,8 @@ window.I18n = (function () {
       'next.pre.before': '開工後,', 'next.pre.later': '下次上班,',
       'next.consumable': '{pre}再撐約 {time},就能換一份 {name}', 'next.goal': '{pre}再撐約 {time},就能解鎖 {name}',
       'next.allDone': '目標全部解鎖,今天的你是人生勝利組', 'next.none': '去「買得起」加個小目標吧',
+      'next.change': '自訂', 'next.pick': '選擇首頁要追蹤的目標', 'next.auto': '自動', 'next.autoHint': '挑最快能換到的項目', 'next.goalReached': '「{name}」的目標達成了!',
+      'next.stock': '{pre}再撐約 {time},就能多買 1 股 {name}', 'next.noEstimate': '算不出「{name}」要工作多久,先檢查一下價格或時薪',
       'toast.first': '先到右上角齒輪,設定你的時薪和上班時間',
       'toast.earned': '今天已經賺了 {amt}', 'toast.notifyTitle': '牛馬薪水計',
 
@@ -205,6 +207,8 @@ window.I18n = (function () {
       'next.pre.before': 'After clock-in: ', 'next.pre.later': 'Next shift: ',
       'next.consumable': '{pre}{time} more and {name} is yours', 'next.goal': '{pre}{time} more and you unlock {name}',
       'next.allDone': 'Every goal unlocked. Absolute legend.', 'next.none': 'Add a little goal in "Worth It"',
+      'next.change': 'Change', 'next.pick': 'Pick what the home card tracks', 'next.auto': 'Auto', 'next.autoHint': 'Whichever you can reach soonest', 'next.goalReached': '"{name}" goal reached!',
+      'next.stock': '{pre}{time} more and you can afford 1 more share of {name}', 'next.noEstimate': 'Can\'t work out how long "{name}" takes. Check the price or your wage.',
       'toast.first': 'Tap the gear (top right) to set your wage and work hours',
       'toast.earned': 'You\'ve made {amt} today', 'toast.notifyTitle': 'WorkHorse',
 
@@ -381,6 +385,8 @@ window.I18n = (function () {
       'next.pre.before': '始業したら、', 'next.pre.later': '次の出勤で、',
       'next.consumable': '{pre}あと{time}がんばれば{name}ゲット', 'next.goal': '{pre}あと{time}がんばれば{name}を解放',
       'next.allDone': '目標ぜんぶ解放。もう勝ち組です', 'next.none': '「何が買う?」で小さな目標を足そう',
+      'next.change': '変更', 'next.pick': 'ホームで追う目標を選ぶ', 'next.auto': '自動', 'next.autoHint': '一番早く届くものを選ぶ', 'next.goalReached': '「{name}」の目標達成!',
+      'next.stock': '{pre}あと{time}がんばれば{name}をもう1株', 'next.noEstimate': '「{name}」にあと何時間かかるか計算できないよ。値段か時給を確認してね',
       'toast.first': '右上の歯車で、時給と勤務時間を設定してね',
       'toast.earned': '今日はもう {amt} 稼いだよ', 'toast.notifyTitle': '社畜給料メーター',
 
