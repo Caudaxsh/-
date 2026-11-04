@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>牛馬薪水計</title>
+<meta name="description" content="即時顯示今天賺了多少錢(到小數點後兩位),並換算成咖啡、便當、手搖飲。">
+<meta name="theme-color" content="#14161c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">🐂 牛馬薪水計</div>
+    <div class="tools">
+      <button class="icon-btn" id="btnHide" title="隱藏金額(老闆鍵:H)">👁</button>
+      <button class="icon-btn" id="btnPip" title="浮動小視窗(置頂)">⧉</button>
+      <button class="icon-btn" id="btnMini" title="精簡模式">▭</button>
+    </div>
+  </header>
+
+  <!-- 迷你卡:精簡模式 / 浮動視窗共用 -->
+  <section class="card hero mini-card" id="miniCard">
+    <div class="chip" data-bind="phase">—</div>
+    <div class="money amount" data-bind="earned">0.00</div>
+    <div class="bar"><i data-bind-width="dayProgress"></i></div>
+    <div class="sub"><span data-bind="toEndShort">—</span><span data-bind="rateShort">—</span></div>
+    <div class="next" data-bind="nextGoal"></div>
+  </section>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="today" class="active">今日</button>
+    <button data-tab="items">換算</button>
+    <button data-tab="settings">設定</button>
+  </nav>
+
+  <main>
+    <!-- 今日 -->
+    <section id="tab-today" class="tab active">
+      <div class="card hero">
+        <div class="chip" data-bind="phase">—</div>
+        <div class="label">今天已經賺到</div>
+        <div class="money amount" data-bind="earned">0.00</div>
+        <div class="bar"><i data-bind-width="dayProgress"></i></div>
+        <div class="sub"><span data-bind="progressText">—</span><span data-bind="toEndShort">—</span></div>
+        <div class="next" data-bind="nextGoal"></div>
+      </div>
+
+      <div class="card stats">
+        <div><span>目前有效時薪</span><b class="amount" data-bind="effRate">—</b></div>
+        <div><span>每分鐘進帳</span><b class="amount" data-bind="perMin">—</b></div>
+        <div><span>每秒進帳</span><b class="amount" data-bind="perSec">—</b></div>
+        <div><span>已工作(不含休息)</span><b data-bind="workedText">—</b></div>
+        <div><span>距離下班</span><b data-bind="toEnd">—</b></div>
+        <div><span data-bind="breakLabel">下一次休息</span><b data-bind="breakText">—</b></div>
+        <div><span>今日預估總額</span><b class="amount" data-bind="dayTotal">—</b></div>
+        <div><span>目前倍率</span><b data-bind="multText">—</b></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="btnShare">📸 產生成果卡</button>
+      </div>
+      <p class="note">顯示的是「薪資等值」:累積工資的消費換算,不代表扣稅、扣除其他成本後的實際可支配金額。</p>
+    </section>
+
+    <!-- 換算 -->
+    <section id="tab-items" class="tab">
+      <div class="card">
+        <div class="row between">
+          <h2>薪資換算器</h2>
+          <button class="btn small" id="btnAddItem">＋ 新增</button>
+        </div>
+        <label class="field inline">
+          <span>便當參考縣市</span>
+          <select id="citySelect"></select>
+        </label>
+        <p class="note">價格皆為可修改的參考值,點「編輯」即可調整。</p>
+      </div>
+      <div id="itemList"></div>
+    </section>
+
+    <!-- 設定 -->
+    <section id="tab-settings" class="tab">
+      <div class="card">
+        <h2>時薪與上下班</h2>
+        <label class="field"><span>時薪 (<em data-bind="cur">NT$</em>)</span>
+          <input type="number" min="0" step="0.01" inputmode="decimal" data-set="hourly"></label>
+        <div class="grid2">
+          <label class="field"><span>上班</span><input type="time" data-set="start"></label>
+          <label class="field"><span>下班</span><input type="time" data-set="end"></label>
+        </div>
+        <label class="check"><input type="checkbox" data-set="continueOT"> 下班後繼續計算加班費</label>
+        <p class="note" id="timeNote"></p>
+      </div>
+
+      <div class="card">
+        <div class="row between"><h2>休息時間</h2><button class="btn small" id="btnAddBreak">＋ 新增</button></div>
+        <p class="note">休息時間不計薪,也不計入剩餘工作時間。</p>
+        <div id="breakList"></div>
+      </div>
+
+      <div class="card">
+        <h2>加班倍率</h2>
+        <label class="check"><input type="checkbox" data-set="ot.on"> 啟用加班倍率</label>
+        <div class="grid3">
+          <label class="field"><span>正常工時(小時)</span><input type="number" min="0" step="0.5" data-set="regularHours"></label>
+          <label class="field"><span>加班第一階(小時)</span><input type="number" min="0" step="0.5" data-set="ot.h1"></label>
+          <span></span>
+          <label class="field"><span>第一階倍率</span><input type="number" min="1" step="0.01" data-set="ot.m1"></label>
+          <label class="field"><span>之後倍率</span><input type="number" min="1" step="0.01" data-set="ot.m2"></label>
+        </div>
+        <p class="note">預設依勞基法平日加班:前 2 小時 1.34 倍、之後 1.67 倍。實際以公司規定為準。</p>
+      </div>
+
+      <div class="card">
+        <h2>提醒與外觀</h2>
+        <label class="field"><span>每隔多久跳出「今天賺了多少」</span>
+          <select data-set="notifyEvery">
+            <option value="0">不提醒</option><option value="15">15 分鐘</option>
+            <option value="30">30 分鐘</option><option value="60">1 小時</option>
+          </select></label>
+        <label class="check"><input type="checkbox" data-set="useSystemNotification" id="chkSysNotify"> 同時使用 Windows 系統通知</label>
+        <label class="field"><span>貨幣</span><select data-set="currency" id="currencySelect"></select></label>
+        <div class="row">
+          <button class="btn" id="btnReset">還原預設值</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- 商品編輯 -->
+<dialog id="itemDialog">
+  <form method="dialog" id="itemForm">
+    <h3 id="itemDialogTitle">編輯項目</h3>
+    <label class="field"><span>類別</span><select name="category"></select></label>
+    <label class="field"><span>名稱</span><input name="name" required maxlength="30"></label>
+    <label class="field"><span>價格</span><input name="price" type="number" min="0.01" step="0.01" required></label>
+    <label class="field"><span>類型</span>
+      <select name="kind">
+        <option value="consumable">可重複購買(顯示可買幾份)</option>
+        <option value="goal">一次性目標(顯示解鎖進度)</option>
+      </select></label>
+    <label class="field" id="savedField"><span>已存金額(選填)</span><input name="saved" type="number" min="0" step="1"></label>
+    <div class="row end">
+      <button type="button" class="btn danger" id="btnDeleteItem">刪除</button>
+      <span class="grow"></span>
+      <button type="button" class="btn" id="btnCancelItem">取消</button>
+      <button type="submit" class="btn primary">儲存</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 成果卡 -->
+<dialog id="shareDialog">
+  <h3>薪水成果卡</h3>
+  <canvas id="shareCanvas" width="1080" height="1080"></canvas>
+  <label class="check"><input type="checkbox" id="shareShowAmount" checked> 顯示累積金額</label>
+  <p class="note">成果卡不含時薪、公司名稱等個人資料。</p>
+  <div class="row end">
+    <button class="btn" id="btnShareClose">關閉</button>
+    <button class="btn" id="btnShareCopy">複製圖片</button>
+    <button class="btn primary" id="btnShareSave">下載 PNG</button>
+  </div>
+</dialog>
+
+<script src="js/defaults.js"></script>
+<script src="js/core.js"></script>
+<script src="js/share.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

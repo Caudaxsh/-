@@ -1,0 +1,11 @@
+{
+  "name": "牛馬薪水計",
+  "short_name": "牛馬薪水",
+  "description": "即時顯示今天賺了多少錢,並換算成咖啡、便當、手搖飲",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#14161c",
+  "theme_color": "#14161c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
