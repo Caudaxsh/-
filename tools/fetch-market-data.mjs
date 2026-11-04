@@ -46,8 +46,9 @@ async function fetchTW() {
       const code = pick(o, ['Code', '證券代號']);
       const name = pick(o, ['Name', '證券名稱']);
       const close = num(pick(o, ['ClosingPrice', '收盤價']));
-      if (code && name && close) list.push([String(code).trim(), String(name).trim(), close, 'TWSE']);
-      date = date || toIso(pick(o, ['Date', '日期']));
+      const d = toIso(pick(o, ['Date', '日期']));
+      date = date || d;
+      if (code && name && close) list.push([String(code).trim(), String(name).trim(), close, 'TWSE', d]);
     }
   } catch (e) { log('TWSE OpenAPI failed:', e.message); }
   if (!date) {
@@ -59,7 +60,7 @@ async function fetchTW() {
       if (!list.length && Array.isArray(j.data)) {
         const f = j.fields || [];
         const iC = f.indexOf('證券代號'), iN = f.indexOf('證券名稱'), iP = f.indexOf('收盤價');
-        for (const r of j.data) { const c = num(r[iP]); if (c) list.push([String(r[iC]).trim(), String(r[iN]).trim(), c, 'TWSE']); }
+        for (const r of j.data) { const c = num(r[iP]); if (c) list.push([String(r[iC]).trim(), String(r[iN]).trim(), c, 'TWSE', date]); }
         log('TWSE rows from rwd fallback', list.length);
       }
     } catch (e) { log('TWSE rwd failed:', e.message); }
@@ -73,11 +74,13 @@ async function fetchTW() {
       const code = pick(o, ['SecuritiesCompanyCode', 'Code', '代號']);
       const name = pick(o, ['CompanyName', 'Name', '名稱']);
       const close = num(pick(o, ['Close', 'ClosingPrice', '收盤']));
-      if (code && name && close && !seen.has(String(code).trim())) list.push([String(code).trim(), String(name).trim(), close, 'TPEx']);
-      tpexDate = tpexDate || toIso(pick(o, ['Date', '資料日期']));
+      const d = toIso(pick(o, ['Date', '資料日期']));
+      tpexDate = tpexDate || d;
+      if (code && name && close && !seen.has(String(code).trim())) list.push([String(code).trim(), String(name).trim(), close, 'TPEx', d]);
     }
   } catch (e) { log('TPEx OpenAPI failed:', e.message); }
-  if (date && tpexDate && date !== tpexDate) log('WARN TWSE/TPEx date differ', date, tpexDate);
+  if (date && tpexDate && date !== tpexDate) log('note: TWSE/TPEx data dates differ (kept per row)', date, tpexDate);
+  for (const r of list) if (!r[4]) r[4] = date || tpexDate;
   return list.length ? { date: date || tpexDate, list } : null;
 }
 
@@ -99,6 +102,22 @@ async function stooqBatch(syms) {
         if (sym && close && /^\d{4}-\d{2}-\d{2}$/.test(d)) out[sym.toUpperCase()] = { close, date: d };
       }
     } catch (e) { log('Stooq batch failed:', e.message); }
+  }
+  if (!Object.keys(out).length && syms.length) {
+    // 批次端點不能用時,改查單檔日線 CSV(取最後一列)
+    let fails = 0;
+    for (const sym of syms) {
+      try {
+        const csv = await get(`https://stooq.com/q/d/l/?s=${sym.toLowerCase()}&i=d`, { text: true });
+        const rows = csv.trim().split(/\r?\n/);
+        const last = rows[rows.length - 1].split(',');
+        const close = num(last[4]);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(last[0]) && close) out[sym.toUpperCase()] = { close, date: last[0] };
+        else fails++;
+      } catch (e) { if (++fails === 1) log('Stooq daily CSV failed:', e.message); }
+      if (fails >= 3 && !Object.keys(out).length) { log('Stooq unavailable, skipping cross-check'); break; }
+      await new Promise((r) => setTimeout(r, 120));
+    }
   }
   return out;
 }

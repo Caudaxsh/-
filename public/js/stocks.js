@@ -175,7 +175,7 @@
 
 
   /* ---------- 每日官方/彙整資料檔(data/market.json,由 GitHub Actions 產生) ----------
-   * 格式:{ tw:{ date, list:[[code, 官方簡稱, close, 'TWSE'|'TPEx']] }, us|jp:{ list:[[code, name, close, date, src]] }, fx:{ rates } } */
+   * 格式:{ tw:{ date, list:[[code, 官方簡稱, close, 'TWSE'|'TPEx', date]] }, us|jp:{ list:[[code, name, close, date, src]] }, fx:{ rates } } */
   const twSymbol = (row) => row[0] + (row[3] === 'TPEx' ? '.TWO' : '.TW');
   const jpSymbol = (code) => code + '.T';
   /** 在資料檔搜尋(代碼或官方簡稱),只回傳 allowed 市場 */
@@ -210,7 +210,7 @@
     let m;
     if ((m = s.match(/^(\w+)\.TWO?$/)) && data.tw && data.tw.list) {
       const r = data.tw.list.find((x) => x[0] === m[1]);
-      if (r) return { symbol: twSymbol(r), name: r[1], close: r[2], currency: 'TWD', date: data.tw.date, src: r[3] };
+      if (r) return { symbol: twSymbol(r), name: r[1], close: r[2], currency: 'TWD', date: r[4] || data.tw.date, src: r[3] };
     }
     if ((m = s.match(/^(\w+)\.T$/)) && data.jp && data.jp.list) {
       const r = data.jp.list.find((x) => x[0] === m[1]);

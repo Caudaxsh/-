@@ -114,7 +114,7 @@ assert.deepStrictEqual(sr.map((x) => x.market), ['TW', 'JP', 'US']);
 // ---- 每日資料檔查詢 ----
 {
   const data = {
-    tw: { date: '2026-11-04', list: [['2330', '台積電', 1000, 'TWSE'], ['6488', '環球晶', 500, 'TPEx'], ['0050', '元大台灣50', 180, 'TWSE'], ['00878', '國泰永續高股息', 22, 'TWSE']] },
+    tw: { date: '2026-11-04', list: [['2330', '台積電', 1000, 'TWSE'], ['6488', '環球晶', 500, 'TPEx', '2026-11-05'], ['0050', '元大台灣50', 180, 'TWSE'], ['00878', '國泰永續高股息', 22, 'TWSE']] },
     us: { list: [['NVDA', 'NVIDIA Corporation', 200, '2026-11-03', 'Yahoo+Stooq'], ['AAPL', 'Apple Inc.', 250, '2026-11-03', 'Yahoo']] },
     jp: { list: [['7203', 'トヨタ自動車', 3000, '2026-11-04', 'Stooq']] },
   };
@@ -126,7 +126,8 @@ assert.deepStrictEqual(sr.map((x) => x.market), ['TW', 'JP', 'US']);
   assert.equal(S.dataSearch(data, 'トヨタ', ['JP'])[0].symbol, '7203.T');
   assert.deepStrictEqual(S.dataSearch(data, '台積電', ['US']).map((r) => r.symbol), []); // 限定市場
   assert.deepStrictEqual(S.dataSearch(null, '台積電', ['TW']), []);
-  let q = S.dataQuote(data, '6488.TW'); assert.equal(q.symbol, '6488.TWO'); assert.equal(q.src, 'TPEx'); assert.equal(q.currency, 'TWD'); assert.equal(q.date, '2026-11-04');
+  let q = S.dataQuote(data, '6488.TW'); assert.equal(q.symbol, '6488.TWO'); assert.equal(q.src, 'TPEx'); assert.equal(q.currency, 'TWD'); assert.equal(q.date, '2026-11-05'); // 每列自己的日期
+  assert.equal(S.dataQuote(data, '2330.TW').date, '2026-11-04');      // 沒有就用整體日期
   q = S.dataQuote(data, '2330.TW'); assert.equal(q.src, 'TWSE'); assert.equal(q.close, 1000);
   q = S.dataQuote(data, 'NVDA'); assert.equal(q.currency, 'USD'); assert.equal(q.src, 'Yahoo+Stooq');
   q = S.dataQuote(data, '7203.T'); assert.equal(q.currency, 'JPY'); assert.equal(q.close, 3000);
