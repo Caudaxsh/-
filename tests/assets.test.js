@@ -28,5 +28,9 @@ console.log(`assets ok: ${n} files, ${refs.size} refs`);
 
 // 各國預設項目使用的圖示 key 必須存在
 const pr = {}; require('vm').runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'public/js/prices.js'), 'utf8'), { window: pr });
-for (const c of Object.values(pr.Prices.COUNTRIES)) for (const it of c.items) assert(json.reward_icons[it.icon], 'country item icon ' + it.icon);
+const hasIcon = (k) => { const [g, n] = k.includes('.') ? k.split('.') : ['reward_icons', k]; return json[g] && json[g][n]; };
+for (const c of Object.values(pr.Prices.COUNTRIES)) { for (const it of c.items) assert(hasIcon(it.icon), 'country item icon ' + it.icon); for (const g of c.goalPresets) assert(hasIcon(g.icon), 'preset icon ' + g.icon); }
+const dd = {}; require('vm').runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'public/js/prices.js'), 'utf8') + ';' + fs.readFileSync(path.join(__dirname, '..', 'public/js/defaults.js'), 'utf8'), { window: dd });
+for (const k of dd.Defaults.UI_ICON_CHOICES) assert(hasIcon(k), 'ui icon choice ' + k);
+for (const k of Object.values(dd.Defaults.ICON_BY_CATEGORY)) assert(hasIcon(k), 'category icon ' + k);
 console.log('country icons ok');

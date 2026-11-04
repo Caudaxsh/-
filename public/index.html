@@ -67,11 +67,8 @@
     <section class="view" id="view-rewards">
       <div class="card">
         <div class="row between">
-          <h2 data-i18n="items.title">薪資換算器</h2>
-          <div class="row">
-            <button class="btn small" id="btnAddStock" data-i18n="items.addStock">＋ 股票</button>
-            <button class="btn small" id="btnAddItem" data-i18n="items.add">＋ 新增</button>
-          </div>
+          <h2 data-i18n="items.title">這筆錢能買啥?</h2>
+          <button class="btn small" id="btnAddItem" data-i18n="items.add">＋ 新增</button>
         </div>
         <label class="field inline"><span data-i18n="items.country">地區</span><select class="country-select" id="countrySelect"></select></label>
         <p class="note" data-i18n="items.note"></p>
@@ -193,6 +190,14 @@
         <option value="goal" data-i18n="dlg.kind.goal"></option>
       </select></label>
     <label class="field" id="savedField"><span data-i18n="dlg.saved">已存金額</span><input name="saved" type="number" min="0" step="1"></label>
+    <label class="check" id="doneField"><input type="checkbox" name="done"> <span data-i18n="goal.markDone">標記為已達成</span></label>
+    <div class="field"><span data-i18n="dlg.image">圖片(選填)</span>
+      <div class="row">
+        <button type="button" class="btn small" id="btnPickImage" data-i18n="dlg.pickImage">上傳圖片</button>
+        <button type="button" class="btn small" id="btnClearImage" data-i18n="dlg.imageClear">移除圖片</button>
+        <input type="file" id="fileImage" accept="image/*" hidden>
+      </div>
+    </div>
     <div class="row end">
       <button type="button" class="btn danger" id="btnDeleteItem" data-i18n="dlg.delete">刪除</button>
       <span class="grow"></span>

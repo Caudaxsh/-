@@ -47,6 +47,7 @@
     return list.map((it) => {
       const o = { ...it };
       if (!o.ref && /^i[1-7]$/.test(o.id || '') && !o.nameKey) o.ref = 'legacy-' + o.id; // 最早期版本的預設項目 → 交給新清單取代
+      if (o.kind !== 'stock') o.category = P.groupOf(o.category); // 舊分類(咖啡/便當/…)→ 6 個新分類
       if (!o.ref && o.nameKey && LEGACY_REF[o.nameKey]) { o.ref = LEGACY_REF[o.nameKey]; const d = P.COUNTRIES.TW.items.find((x) => x.ref === o.ref); if (d && o.est === undefined) o.est = d.est; }
       return o;
     });
@@ -107,10 +108,13 @@
   const wdName = (d) => t('wd.short', { d: t('wd.' + d) });
   const dayLabel = (ms) => { const d = new Date(ms); return `${t('date.md', { m: d.getMonth() + 1, d: d.getDate() })} ${wdName(d.getDay())}`; };
   const itemName = (it) => (it.nameKey ? t(it.nameKey) : it.name);
-  const catName = (c) => (D.CATEGORIES.includes(c) || c === 'stock' ? t('cat.' + c) : c);
-  const iconOf = (it) => it.icon || D.ICON_BY_CATEGORY[it.category] || 'coffee_to_go';
+  const catName = (c) => { const g = P.groupOf(c); return D.CATEGORIES.includes(g) || g === 'stock' ? t('cat.' + g) : c; };
+  const iconOf = (it) => it.icon || D.ICON_BY_CATEGORY[P.groupOf(it.category)] || 'bubble_tea';
   /** 圖示素材 ref:股票用統計圖示,其餘用換算圖示 */
-  const itemIcon = (it) => (it.kind === 'stock' ? 'ui_icons.analytics_chart' : 'reward_icons.' + iconOf(it));
+  const iconRef = (k) => (k.includes('.') ? k : 'reward_icons.' + k); // 'ui_icons.wallet' 或 'bubble_tea'
+  const itemIcon = (it) => (it.kind === 'stock' ? 'ui_icons.analytics_chart' : iconRef(iconOf(it)));
+  /** 商品插畫:使用者上傳的圖片優先,否則用素材包的獨立 PNG */
+  const iconHTML = (it) => (it.image ? `<img class="usr-img" src="${it.image}" alt="" draggable="false">` : A.img(itemIcon(it)));
 
   /* ---------- 綁定 ---------- */
   function bind(name, text) {
@@ -141,7 +145,7 @@
   function nearestReward(T) {
     let best = null;
     for (const it of items) {
-      if (it.enabled === false) continue;
+      if (it.enabled === false || it.kind === 'stock' || it.done) continue; // 首頁只看生活消費,股票另外顯示
       const p = C.itemProgress(T, it);
       if (p.invalid || p.unlocked || !isFinite(p.minutes)) continue;
       if (!best || p.minutes < best.p.minutes) best = { it, p };
@@ -211,7 +215,7 @@
     if (g) {
       const pre = g.p.later || T.phase === 'off' ? t('next.pre.later') : T.phase === 'before' ? t('next.pre.before') : '';
       const text = t(g.p.kind === 'goal' ? 'next.goal' : 'next.consumable', { pre, time: dur(g.p.minutes), name: esc(itemName(g.it)) });
-      html = `<span class="next-ico">${A.img(itemIcon(g.it))}</span><span class="next-text">${text}</span>`;
+      html = `<span class="next-ico">${iconHTML(g.it)}</span><span class="next-text">${text}</span>`;
     } else {
       html = `<span class="next-ico">${A.img('brand.coffee_cup_illustration')}</span><span class="next-text">${t(items.length ? 'next.allDone' : 'next.none')}</span>`;
     }
@@ -310,11 +314,20 @@
       return s;
     };
     if (p.kind === 'goal') {
+      if (it && it.done) return { main: `<span class="badge">${t('goal.done')} ✓</span>`, sub: t('item.goalTarget', { price: money0(p.price) }) + (p.saved ? ' ' + t('item.goalSaved', { saved: money0(p.saved) }) : ''), ratio: 1 };
       if (p.unlocked) return { main: `<span class="badge">${t('item.unlocked')}</span>`, sub: t('item.goalTarget', { price: money0(p.price) }) + (p.saved ? ' ' + t('item.goalSaved', { saved: money0(p.saved) }) : ''), ratio: 1 };
       return { main: `<span class="item-count">${(p.ratio * 100).toFixed(1)}<small>%</small></span>`, sub: `${t('item.gap', { amt: `<b>${money(p.gap)}</b>` })}｜${left()}`, ratio: p.ratio };
     }
-    return { main: `<span class="item-count">${p.count}<small>${t(it && it.kind === 'stock' ? 'item.unitShare' : 'item.unit')}</small></span>`, sub: `${t('item.gapNext', { amt: `<b>${money(p.gap)}</b>` })}｜${left()}`, ratio: p.ratio };
+    // 「份數」是薪資等值(你賺的錢相當於幾份),不是已經買了
+    const main = it && it.kind === 'stock' ? '' : `<span class="item-count">${p.count}<small>${t('item.unit')}</small></span><span class="equiv-tag">${t('item.equivTag')}</span>`;
+    return { main, sub: `${t('item.gapNext', { amt: `<b>${money(p.gap)}</b>` })}｜${left()}`, ratio: p.ratio };
   }
+
+  /* ---- 股票:參考股價 / 理論等值股數 / 交易單位 / 報價時間 ---- */
+  const LOT = { US: 1, TW: 1000, JP: 100 };
+  const lotOf = (it) => LOT[it.market] || LOT[ST.marketOf(it.symbol || '')] || 1;
+  const fmtAt = (ts) => { if (!ts) return '—'; const d = new Date(ts); return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const fmtShares = (v) => (v > 0 && v < 0.01 ? '<0.01' : num(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   function stockMeta(it) {
     const sym = esc(it.symbol || '');
     if (it.manual > 0) return { text: t('stock.metaManual', { sym }), err: false };
@@ -325,64 +338,163 @@
     if (stockState[it.id] === 'error') text += ' ・' + t('stock.error', { sym: '' }).replace(/^・/, '');
     return { text, err: !!it.fxMissing || stockState[it.id] === 'error' };
   }
-  function renderItems() {
-    $('#itemList').innerHTML = items.map((it) => {
-      const stock = it.kind === 'stock';
-      const meta = stock ? stockMeta(it) : null;
-      return `
-      <div class="card item ${it.enabled === false ? 'off' : ''}" data-id="${it.id}">
-        <div class="item-ico">${A.img(itemIcon(it))}</div>
+
+  /* ---- 價格來源行 ---- */
+  function srcLine(it) {
+    if (it.kind === 'stock') return '';
+    if (it.src && !it.priceEdited) return `<div class="price-src">${t('item.src', { src: esc(it.src), date: esc(it.srcDate || P.AS_OF) })}</div>`;
+    return `<div class="price-src">${t('item.srcCustom')}</div>`;
+  }
+
+  function cardHTML(it) {
+    const stock = it.kind === 'stock';
+    const meta = stock ? stockMeta(it) : null;
+    const priceHTML = stock && !(it.price > 0) ? '—' : money0(it.price);
+    const head = `
+        <div class="item-head">
+          <div class="item-name">${esc(itemName(it))}<span class="item-cat">${esc(catName(it.category))}${it.kind === 'goal' ? t('item.goalTag') : ''}</span></div>
+          <div class="item-price amount">${it.est && !it.priceEdited ? `<span class="est">${t('item.est')}</span>` : ''}${priceHTML}${stock ? t('item.perShare') : ''}</div>
+        </div>`;
+    const stockBlock = !stock ? '' : `
+        <div class="stock-grid">
+          <div><small>${t('stock.refPrice')}</small><b class="amount">${priceHTML}</b></div>
+          <div><small>${t('stock.theory')}</small><b class="amount" data-role="theory">—</b></div>
+        </div>
+        <div class="stock-line">${t('stock.unit.' + (['US', 'TW', 'JP'].includes(it.market) ? it.market : ST.marketOf(it.symbol || '')))}${it.price > 0 && lotOf(it) > 1 ? '・' + t('stock.lotCost', { amt: money0(it.price * lotOf(it)) }) : ''}</div>
+        ${it.quote ? `<div class="stock-line">${t('stock.quoteTime', { date: esc(it.quote.date), at: fmtAt(it.quote.at) })}・${srcLabel(it.quote.src)}</div>` : ''}`;
+    return `
+      <div class="card item ${it.enabled === false ? 'off' : ''} ${it.done ? 'done' : ''}" data-id="${it.id}">
+        <div class="item-ico">${iconHTML(it)}</div>
         <div>
-          <div class="item-head">
-            <div class="item-name">${esc(itemName(it))}<span class="item-cat">${esc(catName(it.category))}${it.kind === 'goal' ? t('item.goalTag') : ''}</span></div>
-            <div class="item-price amount">${it.est ? `<span class="est">${t('item.est')}</span>` : ''}${stock && !(it.price > 0) ? '—' : money0(it.price)}${stock ? t('item.perShare') : ''}</div>
-          </div>
+          ${head}
           <div data-role="main"></div>
           <div class="bar"><i data-role="bar"></i></div>
+          ${stockBlock}
           <div class="item-sub" data-role="sub"></div>
-          ${stock ? `<div class="stock-meta ${meta.err ? 'err' : ''}">${meta.text}</div>` : ''}
+          ${stock ? `<div class="stock-meta ${meta.err ? 'err' : ''}">${meta.text}</div>` : srcLine(it)}
           <div class="item-actions"><button data-act="edit">${t('item.edit')}</button>${stock ? `<button data-act="refresh">${t('stock.refresh')}</button>` : ''}<button data-act="toggle">${it.enabled === false ? t('item.on') : t('item.off')}</button></div>
         </div>
       </div>`;
-    }).join('') || `<div class="card empty">${A.img('brand.coffee_cup_illustration')}${t('item.empty')}</div>`;
-    const hasStock = items.some((i) => i.kind === 'stock');
-    if (hasStock) $('#itemList').insertAdjacentHTML('beforeend', `<p class="note">${t('stock.note')}</p>`);
+  }
+
+  /** 「探索更多」的一列 */
+  function catRow(e, addedRefs) {
+    const added = addedRefs.has(e.ref);
+    return `<div class="cat-row">
+      <div class="cat-ico">${A.img(e.icon.includes('.') ? e.icon : 'reward_icons.' + e.icon)}</div>
+      <div><div class="cat-name">${esc(t(e.nameKey))}</div>
+        <div class="cat-price amount">${e.est ? `<span class="est">${t('item.est')}</span>` : ''}${money0(e.price)}</div>
+        <div class="cat-src">${esc(e.src || '')}・${esc(e.srcDate || '')}</div></div>
+      <button class="btn small" data-act="catadd" data-ref="${esc(e.ref)}" ${added ? 'disabled' : ''}>${t(added ? 'explore.added' : 'explore.add')}</button>
+    </div>`;
+  }
+
+  function renderItems() {
+    const open = new Set($$('#itemList details[open]').map((d) => d.dataset.key));
+    const live = items.filter((i) => i.kind !== 'stock');
+    const featured = items.filter((i) => i.featured && i.kind !== 'stock');
+    const goals = items.filter((i) => i.kind === 'goal' && !i.featured).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+    const stocks = items.filter((i) => i.kind === 'stock');
+    const mine = live.filter((i) => !i.featured && i.kind !== 'goal');
+    const addedRefs = new Set(items.filter((i) => i.ref).map((i) => i.ref));
+    const catalog = P.catalogFor(settings.country).filter((e) => e.kind !== 'goal');
+    const presets = P.goalPresetsFor(settings.country);
+
+    let html = '';
+    // 1) 精選
+    html += `<div class="sec-head"><h3>${t('sec.featured')}</h3></div>`;
+    html += featured.map(cardHTML).join('') || `<div class="card empty">${A.img('brand.coffee_cup_illustration')}${t('item.empty')}</div>`;
+    // 2) 個人目標
+    html += `<div class="sec-head"><h3>${t('sec.goals')}</h3><button class="btn small" data-act="goaladd">${t('goal.add')}</button></div>`;
+    html += `<div class="chips-row" aria-label="${t('goal.quick')}">${presets.map((g) => `<button data-act="preset" data-key="${g.key}">${t('goalp.' + g.key)}</button>`).join('')}<button data-act="preset" data-key="custom">${t('goalp.custom')}</button></div>`;
+    html += goals.map(cardHTML).join('') || `<p class="sec-empty">${t('goal.empty')}</p>`;
+    // 3) 股票與 ETF
+    html += `<div class="sec-head"><h3>${t('sec.invest')}<small>${t('sec.investHint')}</small></h3><button class="btn small" data-act="addstock">${t('items.addStock')}</button></div>`;
+    html += stocks.map(cardHTML).join('');
+    if (stocks.length) html += `<p class="note">${t('stock.note')}</p>`;
+    // 4) 我加入的項目
+    if (mine.length) html += `<div class="sec-head"><h3>${t('sec.mine')}</h3></div>` + mine.map(cardHTML).join('');
+    // 5) 探索更多(依 6 個分類;個人目標分類放快速建立的預設)
+    html += `<details class="card explore" data-key="explore"${open.has('explore') ? ' open' : ''}><summary><span>${t('sec.explore')}<small style="display:block;font-weight:400">${t('sec.exploreHint')}</small></span></summary>`;
+    for (const g of P.GROUPS) {
+      let rows;
+      if (g === 'goal') {
+        rows = presets.map((p) => `<div class="cat-row">
+          <div class="cat-ico">${A.img(p.icon.includes('.') ? p.icon : 'reward_icons.' + p.icon)}</div>
+          <div><div class="cat-name">${esc(t('goalp.' + p.key))}</div><div class="cat-price amount">${p.est ? `<span class="est">${t('item.est')}</span>` : ''}${money0(p.price)}</div><div class="cat-src">${esc(p.src)}・${esc(p.date)}</div></div>
+          <button class="btn small" data-act="preset" data-key="${p.key}">${t('explore.add')}</button></div>`).join('');
+      } else {
+        const list = catalog.filter((e) => e.category === g);
+        if (!list.length) continue;
+        rows = list.map((e) => catRow(e, addedRefs)).join('');
+      }
+      html += `<details class="grp" data-key="grp-${g}"${open.has('grp-' + g) ? ' open' : ''}><summary><span>${t('cat.' + g)}</span></summary>${rows}</details>`;
+    }
+    html += `</details>`;
+    $('#itemList').innerHTML = html;
     updateItems(nowT());
   }
+
   function updateItems(T) {
     for (const it of items) {
       const el = $(`.item[data-id="${it.id}"]`);
       if (!el) continue;
-      const main = $('[data-role=main]', el), sub = $('[data-role=sub]', el), bar = $('[data-role=bar]', el);
-      if (it.enabled === false) { main.innerHTML = ''; sub.textContent = t('item.disabled'); bar.style.width = '0'; continue; }
-      if (it.kind === 'stock' && !(it.price > 0)) { main.innerHTML = ''; sub.textContent = ''; bar.style.width = '0'; continue; }
+      const main = $('[data-role=main]', el), sub = $('[data-role=sub]', el), bar = $('[data-role=bar]', el), theory = $('[data-role=theory]', el);
+      if (it.enabled === false) { main.innerHTML = ''; sub.textContent = t('item.disabled'); bar.style.width = '0'; if (theory) theory.textContent = '—'; continue; }
+      if (it.kind === 'stock' && !(it.price > 0)) { main.innerHTML = ''; sub.textContent = ''; bar.style.width = '0'; if (theory) theory.textContent = '—'; continue; }
       const s = itemSummary(C.itemProgress(T, it), it);
       if (main.innerHTML !== s.main) main.innerHTML = s.main;
       if (sub.innerHTML !== s.sub) sub.innerHTML = s.sub;
+      if (theory) { const v = fmtShares(T.earned / it.price) + t('item.shareUnit'); if (theory.textContent !== v) theory.textContent = v; }
       bar.style.width = (Math.max(0, Math.min(1, s.ratio)) * 100).toFixed(1) + '%';
     }
   }
 
   const dlg = $('#itemDialog'), form = $('#itemForm');
-  let editingId = null;
-  const previewIcon = () => $('#itemIconPreview').setAttribute('src', A.url('reward_icons.' + form.icon.value));
-  const syncSaved = () => { $('#savedField').style.display = form.kind.value === 'goal' ? '' : 'none'; };
-  function openItem(id) {
-    editingId = id;
-    const it = items.find((i) => i.id === id) || { category: 'fun', name: '', price: '', kind: 'consumable', saved: '', icon: D.ICON_BY_CATEGORY.fun };
-    form.category.value = it.category; form.name.value = itemName(it); form.price.value = it.price;
-    form.kind.value = it.kind; form.saved.value = it.saved || ''; form.icon.value = iconOf(it);
-    $('#itemDialogTitle').textContent = t(id ? 'dlg.item.edit' : 'dlg.item.add');
+  let editingId = null, dlgImage = null, dlgPreset = null;
+  const previewIcon = () => {
+    const box = $('#itemIconPreview');
+    box.setAttribute('src', dlgImage || A.url(iconRef(form.icon.value)));
+    box.classList.toggle('usr', !!dlgImage);
+  };
+  const syncKind = () => { const g = form.kind.value === 'goal'; $('#savedField').style.display = g ? '' : 'none'; $('#doneField').style.display = g ? '' : 'none'; };
+  /** preset:快速建立的預設(手機/相機/…);傳 {kind:'goal'} 則是空白目標 */
+  function openItem(id, preset) {
+    editingId = id; dlgPreset = preset && preset.nameKey ? preset : null;
+    const base = preset || {};
+    const it = items.find((i) => i.id === id) || { category: base.category || 'fun', name: '', price: base.price || '', kind: base.kind || 'consumable', saved: '', icon: base.icon || D.ICON_BY_CATEGORY[base.category || 'fun'], nameKey: base.nameKey };
+    dlgImage = it.image || null;
+    form.category.value = P.groupOf(it.category); form.name.value = itemName(it); form.price.value = it.price;
+    form.kind.value = it.kind; form.saved.value = it.saved || ''; form.icon.value = iconOf(it); form.done.checked = !!it.done;
+    $('#itemDialogTitle').textContent = t(id ? 'dlg.item.edit' : (it.kind === 'goal' ? 'goal.add' : 'dlg.item.add')).replace(/^＋ /, '');
     $('#btnDeleteItem').style.display = id ? '' : 'none';
-    syncSaved(); previewIcon(); dlg.showModal();
+    syncKind(); previewIcon(); dlg.showModal();
   }
   form.category.onchange = () => {
     form.icon.value = D.ICON_BY_CATEGORY[form.category.value] || form.icon.value;
     if (form.category.value === 'goal') form.kind.value = 'goal';
-    syncSaved(); previewIcon();
+    syncKind(); previewIcon();
   };
   form.icon.onchange = previewIcon;
-  form.kind.onchange = syncSaved;
+  form.kind.onchange = syncKind;
+  // 圖片上傳:縮成最長邊 160px 的 JPEG 存在瀏覽器裡(不上傳到任何地方)
+  $('#btnPickImage').onclick = () => $('#fileImage').click();
+  $('#btnClearImage').onclick = () => { dlgImage = null; previewIcon(); };
+  $('#fileImage').onchange = (e) => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f || !/^image\//.test(f.type)) return;
+    const url = URL.createObjectURL(f);
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 160 / Math.max(im.naturalWidth, im.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+      const cx = c.getContext('2d'); cx.fillStyle = '#FFFCF7'; cx.fillRect(0, 0, c.width, c.height); cx.drawImage(im, 0, 0, c.width, c.height);
+      dlgImage = c.toDataURL('image/jpeg', 0.82); URL.revokeObjectURL(url); previewIcon();
+    };
+    im.onerror = () => URL.revokeObjectURL(url);
+    im.src = url;
+  };
   $('#btnAddItem').onclick = () => openItem(null);
   $('#btnCancelItem').onclick = () => dlg.close();
   $('#btnDeleteItem').onclick = () => {
@@ -391,27 +503,58 @@
   form.onsubmit = () => {
     const it = items.find((i) => i.id === editingId);
     const typed = form.name.value.trim();
+    const isGoal = form.kind.value === 'goal';
     const data = {
       category: form.category.value, icon: form.icon.value, kind: form.kind.value,
       price: Math.max(0.01, Number(form.price.value) || 0.01),
-      saved: form.kind.value === 'goal' ? Math.max(0, Number(form.saved.value) || 0) : 0,
+      saved: isGoal ? Math.max(0, Number(form.saved.value) || 0) : 0,
+      done: isGoal && form.done.checked, image: dlgImage || undefined,
     };
     if (it) {
-      if (data.price !== Number(it.price)) it.est = false; // 使用者改過價格 → 不再是「約」
+      if (data.price !== Number(it.price)) { it.priceEdited = true; it.est = false; } // 使用者改過價格 → 不再是參考價/「約」
       if (it.ref) it.custom = true; // 改過的預設項目,預設清單更新時保留
       Object.assign(it, data);
+      if (!data.image) delete it.image;
       if (!(it.nameKey && typed === t(it.nameKey))) { delete it.nameKey; it.name = typed || catName(data.category); } // 使用者改過名字就不再自動翻譯
-    } else items.push({ id: newId(), enabled: true, name: typed || catName(data.category), ...data });
+    } else {
+      const n = { id: newId(), enabled: true, name: typed || catName(data.category), ...data };
+      if (!data.image) delete n.image;
+      if (dlgPreset) { // 從預設快速建立:名字沒改就沿用可翻譯的名稱,價格沒改就保留來源資訊
+        if (typed === t(dlgPreset.nameKey)) { n.nameKey = dlgPreset.nameKey; n.name = ''; }
+        if (data.price === dlgPreset.price) { n.est = dlgPreset.est; n.src = dlgPreset.src; n.srcDate = dlgPreset.date; } else n.priceEdited = true;
+      }
+      items.push(n);
+    }
     saveAll(); renderItems(); tick();
   };
+
+  /** 「探索更多」按「加入」→ 放進自己的清單 */
+  function addFromCatalog(ref) {
+    const e = P.catalogFor(settings.country).find((x) => x.ref === ref);
+    if (!e || items.some((i) => i.ref === ref)) return;
+    items.push({ ...e, id: 'c-' + ref });
+    saveAll(); renderItems(); tick(); toast(t('toast.stockAdded', { name: t(e.nameKey) }));
+  }
   $('#itemList').addEventListener('click', (e) => {
-    const act = e.target.dataset.act;
-    if (!act) return;
-    const id = e.target.closest('.item').dataset.id;
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'goaladd') return openItem(null, { kind: 'goal', category: 'goal', icon: 'ui_icons.goal_flag' });
+    if (act === 'addstock') return openStock(null);
+    if (act === 'catadd') return addFromCatalog(btn.dataset.ref);
+    if (act === 'preset') {
+      if (btn.dataset.key === 'custom') return openItem(null, { kind: 'goal', category: 'goal', icon: 'ui_icons.goal_flag' });
+      const g = P.goalPresetsFor(settings.country).find((x) => x.key === btn.dataset.key);
+      return g && openItem(null, { kind: 'goal', category: 'goal', nameKey: 'goalp.' + g.key, price: g.price, icon: g.icon, est: g.est, src: g.src, date: g.date });
+    }
+    const card = btn.closest('.item');
+    if (!card) return;
+    const id = card.dataset.id;
     if (act === 'edit') { const it0 = items.find((i) => i.id === id); if (it0.kind === 'stock') openStock(id); else openItem(id); }
     if (act === 'refresh') refreshQuotes(true, id);
     if (act === 'toggle') { const it = items.find((i) => i.id === id); it.enabled = it.enabled === false; saveAll(); renderItems(); tick(); }
   });
+
   /* ---------- 流水帳 ---------- */
   function renderHistory() {
     const list = shifts.slice().sort((a, b) => b.start - a.start);
@@ -647,7 +790,7 @@
     $('#notifySelect').innerHTML = [['0', 'set.never'], ['15', 'set.15'], ['30', 'set.30'], ['60', 'set.60']].map(([v, k]) => `<option value="${v}">${t(k)}</option>`).join('');
     $('#notifySelect').value = String(settings.notifyEvery);
     form.category.innerHTML = D.CATEGORIES.map((c) => `<option value="${c}">${t('cat.' + c)}</option>`).join('');
-    form.icon.innerHTML = D.REWARD_ICONS.filter((k) => A.url('reward_icons.' + k)).map((k) => `<option value="${k}">${t('icon.' + k)}</option>`).join('');
+    form.icon.innerHTML = D.REWARD_ICONS.filter((k) => A.url('reward_icons.' + k)).map((k) => `<option value="${k}">${t('icon.' + k)}</option>`).join('') + D.UI_ICON_CHOICES.filter((k) => A.url(k)).map((k) => `<option value="${k}">${t('icon.' + k)}</option>`).join('');
     $('#langSelect').innerHTML = Object.entries(I.LANGS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
     $('#langSelect').value = I.lang;
   }
@@ -669,21 +812,22 @@
   /* ---------- 成果卡 ---------- */
   const imgCache = {};
   async function img(ref) { return imgCache[ref] || (imgCache[ref] = await A.loadImage(ref)); }
+  const loadDataUrl = (u) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = u; });
   async function drawCard() {
     const T = nowT();
     const lines = [];
     for (const it of items) {
       if (it.enabled === false || it.kind === 'goal') continue;
       const n = Math.floor(T.earned / it.price + 1e-9);
-      if (n >= 1) lines.push({ label: itemName(it), value: `× ${n}`, n, ref: itemIcon(it) });
+      if (n >= 1) lines.push({ label: itemName(it), value: `× ${n}`, n, ref: itemIcon(it), image: it.image });
     }
     lines.sort((a, b) => b.n - a.n);
     for (const g of items.filter((it) => it.enabled !== false && it.kind === 'goal' && C.itemProgress(T, it).unlocked)) {
-      lines.unshift({ label: itemName(g), value: t('share.unlocked'), ref: 'reward_icons.' + iconOf(g) });
+      lines.unshift({ label: itemName(g), value: t('share.unlocked'), ref: itemIcon(g), image: g.image });
     }
     if (!lines.length) lines.push({ label: t('share.keepGoing'), value: '…', ref: 'brand.coffee_cup_illustration' });
     const top = lines.slice(0, 3);
-    for (const l of top) l.icon = await img(l.ref);
+    for (const l of top) l.icon = l.image ? await loadDataUrl(l.image) : await img(l.ref);
     const d = new Date();
     ShareCard.draw($('#shareCanvas'), {
       title: t('share.title'), todayLabel: t('share.today'), footer: t('share.foot'), brand: t('brand.name'),
@@ -752,7 +896,7 @@
     for (const it of targets) {
       const d = ST.dataQuote(market, it.symbol);
       if (d && (!it.quote || it.quote.date !== d.date || it.quote.src !== d.src || it.quote.close !== d.close)) {
-        it.quote = { close: d.close, currency: d.currency, date: d.date, src: d.src, at: Date.now() };
+        it.quote = { close: d.close, currency: d.currency, date: d.date, src: d.src, at: Date.parse(market.generatedAt) || Date.now() };
         it.symbol = d.symbol; delete stockState[it.id]; changed = true;
       }
     }
@@ -931,7 +1075,6 @@
     if (!it) toast(t('toast.stockAdded', { name: data.name }));
     if (!stockQuote && !manual) refreshQuotes(true);
   };
-  $('#btnAddStock').onclick = () => openStock(null);
 
   /* ---------- 啟動 ---------- */
   A.hydrate();

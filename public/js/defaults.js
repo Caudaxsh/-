@@ -12,13 +12,14 @@ window.Defaults = (function () {
   // 國家 → 幣別;各國物價與法定薪資參考值在 prices.js
   const COUNTRIES = ['TW', 'JP', 'PH'];
 
-  const CATEGORIES = ['coffee', 'food', 'bento', 'drink', 'alcohol', 'hotpot', 'fun', 'transit', 'goal']; // 股票(stock)另有專屬流程
+  const CATEGORIES = ['drinks', 'food', 'fun', 'travel', 'tech', 'goal']; // 咖啡與飲料 / 美食與零食 / 娛樂 / 交通與旅行 / 3C / 個人目標(股票另有專屬流程)
   const ICON_BY_CATEGORY = {
-    coffee: 'coffee_to_go', food: 'taiwanese_bento', bento: 'taiwanese_bento', drink: 'bubble_tea', alcohol: 'bubble_tea', hotpot: 'hotpot',
-    fun: 'movie_ticket_popcorn', transit: 'metro_card', goal: 'travel_suitcase_passport',
+    drinks: 'bubble_tea', food: 'taiwanese_bento', fun: 'movie_ticket_popcorn', travel: 'metro_card', tech: 'smartphone', goal: 'travel_suitcase_passport',
   };
   // 舊版(中文類別)→ 新版類別 id,用於資料遷移
   const LEGACY_CATEGORY = { '咖啡': 'coffee', '便當': 'bento', '手搖飲': 'drink', '火鍋': 'hotpot', '娛樂': 'fun', '交通': 'transit', '個人目標': 'goal' };
+  // 圖示可選:換算圖示(只寫 key)+ 介面圖示(完整 ref,含點號)。之後換新圖只要改素材包。
+  const UI_ICON_CHOICES = ['ui_icons.wallet', 'ui_icons.money_pouch', 'ui_icons.goal_flag'];
   const REWARD_ICONS = ['coffee_to_go', 'taiwanese_bento', 'bubble_tea', 'hotpot', 'movie_ticket_popcorn', 'metro_card', 'travel_suitcase_passport', 'smartphone', 'camera'];
 
   const SETTINGS = {
@@ -44,5 +45,5 @@ window.Defaults = (function () {
 
   const ITEMS = window.Prices.itemsFor('TW');
 
-  return { CURRENCIES, COUNTRIES, CATEGORIES, ICON_BY_CATEGORY, LEGACY_CATEGORY, REWARD_ICONS, SETTINGS, ITEMS };
+  return { CURRENCIES, COUNTRIES, CATEGORIES, ICON_BY_CATEGORY, LEGACY_CATEGORY, REWARD_ICONS, UI_ICON_CHOICES, SETTINGS, ITEMS };
 })();
