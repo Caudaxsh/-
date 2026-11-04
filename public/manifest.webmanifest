@@ -1,0 +1,11 @@
+{
+  "name": "牛馬薪水計 WorkHorse",
+  "short_name": "牛馬薪水計",
+  "description": "即時顯示今天賺了多少錢,並換算成咖啡、便當、手搖飲",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F8F4EE",
+  "theme_color": "#F8F4EE",
+  "icons": [{ "src": "assets/workhorse/brand/app_icon_512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}

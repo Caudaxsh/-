@@ -1,0 +1,47 @@
+/* 自動產生,請勿手改:node tools/build-manifest-js.js */
+window.WORKHORSE_ASSET_MANIFEST = {
+  "brand": {
+    "cow_coffee_logo": "brand/cow_coffee_logo.png",
+    "coffee_cup_illustration": "brand/coffee_cup_illustration.png",
+    "app_icon_512": "brand/app_icon_512.png"
+  },
+  "ui_icons": {
+    "analytics_chart": "icons/ui/analytics_chart.png",
+    "calendar": "icons/ui/calendar.png",
+    "clock": "icons/ui/clock.png",
+    "coffee_takeaway": "icons/ui/coffee_takeaway.png",
+    "download": "icons/ui/download.png",
+    "goal_flag": "icons/ui/goal_flag.png",
+    "home": "icons/ui/home.png",
+    "money_pouch": "icons/ui/money_pouch.png",
+    "pause": "icons/ui/pause.png",
+    "play": "icons/ui/play.png",
+    "settings_gear": "icons/ui/settings_gear.png",
+    "share": "icons/ui/share.png",
+    "stop": "icons/ui/stop.png",
+    "stopwatch": "icons/ui/stopwatch.png",
+    "time_history": "icons/ui/time_history.png",
+    "wallet": "icons/ui/wallet.png"
+  },
+  "reward_icons": {
+    "bubble_tea": "icons/rewards/bubble_tea.png",
+    "camera": "icons/rewards/camera.png",
+    "coffee_to_go": "icons/rewards/coffee_to_go.png",
+    "hotpot": "icons/rewards/hotpot.png",
+    "metro_card": "icons/rewards/metro_card.png",
+    "movie_ticket_popcorn": "icons/rewards/movie_ticket_popcorn.png",
+    "smartphone": "icons/rewards/smartphone.png",
+    "taiwanese_bento": "icons/rewards/taiwanese_bento.png",
+    "travel_suitcase_passport": "icons/rewards/travel_suitcase_passport.png"
+  },
+  "mascot": {
+    "cow_holding_coffee": "mascot/cow_holding_coffee.png",
+    "cow_saving_money": "mascot/cow_saving_money.png",
+    "cow_sleeping": "mascot/cow_sleeping.png",
+    "cow_working_laptop": "mascot/cow_working_laptop.png"
+  },
+  "backgrounds": {
+    "coffee_doodle_pattern": "backgrounds/coffee_doodle_pattern.png"
+  },
+  "design_reference": "docs/design_tokens.json"
+};
