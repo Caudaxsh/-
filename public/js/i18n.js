@@ -1,0 +1,294 @@
+/* 多語言:繁體中文 / English / 日本語
+ * 語氣刻意走輕鬆、年輕人、帶點自嘲幽默的風格(牛馬 / wage slave / 社畜),不是新聞稿。
+ * t(key, {var}) → 字串;HTML 內以 data-i18n / data-i18n-title / data-i18n-aria / data-i18n-ph 標記。 */
+window.I18n = (function () {
+  const LANGS = {
+    'zh-TW': { label: '繁體中文', locale: 'zh-TW' },
+    en: { label: 'English', locale: 'en-US' },
+    ja: { label: '日本語', locale: 'ja-JP' },
+  };
+
+  const D = {
+    'zh-TW': {
+      'doc.title': '牛馬薪水計 WorkHorse',
+      'brand.name': '牛馬薪水計',
+      'tab.home': '今日', 'tab.rewards': '買得起', 'tab.history': '流水帳', 'tab.stats': '戰績',
+      'btn.share': '產生成果卡(炫耀用)', 'btn.settings': '設定', 'lang.title': '切換語言',
+      'phase.before': '準備開工', 'phase.working': '牛馬運轉中', 'phase.break': '充電中', 'phase.done': '下班啦', 'phase.off': '今天放假',
+      'hero.label': '今天已經賺到',
+      'rate.working': '時薪 {rate}・每分鐘進帳 {perMin}', 'rate.ot': '・加班 ×{m}', 'rate.idle': '時薪 {rate}', 'rate.paused': '時薪 {rate}・暫停計薪',
+      'goal.label': '今日目標',
+      'worked.label': '已經搬磚', 'worked.sub': '休息 {n} 分鐘',
+      'until.end': '距離下班', 'until.end.sub': '預定 {t} 下班',
+      'until.start': '距離開工', 'until.start.sub': '預定 {t} 開工',
+      'done.title': '下班啦', 'done.sub': '今天辛苦了,牛馬',
+      'off.title': '下次上班', 'off.sub': '好好耍廢',
+      'q.off': '今天放假/請假', 'q.offUndo': '取消放假', 'q.work': '今天要補班', 'q.workUndo': '取消補班',
+      'q.ot': '加班 +30 分', 'q.otMore': '已加班 {n} 分・再 +30', 'q.otReset': '重設',
+      'toast.offOn': '收到,今天不計薪,好好耍廢', 'toast.offOff': '好吧,今天照常搬磚', 'toast.workOn': '補班日⋯今天照常計薪',
+      'toast.workOff': '已取消補班', 'toast.otAdd': '再賣肝 30 分鐘,辛苦了', 'toast.otReset': '加班已重設',
+      'next.pre.before': '開工後,', 'next.pre.later': '下次上班,',
+      'next.consumable': '{pre}再撐約 {time},就能換一份 {name}', 'next.goal': '{pre}再撐約 {time},就能解鎖 {name}',
+      'next.allDone': '目標全部解鎖,今天的你是人生勝利組', 'next.none': '去「買得起」加個小目標吧',
+      'toast.first': '先到右上角齒輪,設定你的時薪和上班時間',
+      'toast.earned': '今天已經賺了 {amt}', 'toast.notifyTitle': '牛馬薪水計',
+
+      'items.title': '這筆錢能買啥', 'items.add': '＋ 新增', 'items.city': '便當參考縣市',
+      'items.note': '價格都是參考值,想改就改。這是「薪資等值」,不是扣完稅的可支配金額,別買太爽。',
+      'item.unit': ' 份', 'item.gapNext': '下一份還差 {amt}', 'item.gap': '還差 {amt}',
+      'item.left': '還要撐 <b>{time}</b>', 'item.eta': '(預計 {clock} 到手)', 'item.days': '(約 {n} 個工作天)', 'item.ot': '(得加班才行)',
+      'item.later': '下次上班約 <b>{time}</b>', 'item.unlocked': '已解鎖', 'item.goalTarget': '目標 {price}', 'item.goalSaved': '(含已存 {saved})',
+      'item.disabled': '已停用', 'item.invalid': '價格無效', 'item.noEstimate': '算不出來',
+      'item.edit': '編輯', 'item.off': '停用', 'item.on': '啟用', 'item.goalTag': '・目標',
+      'item.empty': '還沒有項目,按「＋ 新增」建立。',
+      'toast.city': '便當參考價已套用 {city}:{price}(可自行編輯)',
+      'dlg.item.add': '新增項目', 'dlg.item.edit': '編輯項目', 'dlg.icon': '圖示', 'dlg.category': '類別', 'dlg.name': '名稱', 'dlg.price': '價格',
+      'dlg.kind': '類型', 'dlg.kind.consumable': '可重複購買(顯示可買幾份)', 'dlg.kind.goal': '一次性目標(顯示解鎖進度)', 'dlg.saved': '已存金額(選填)',
+      'dlg.delete': '刪除', 'dlg.cancel': '取消', 'dlg.save': '儲存', 'confirm.delItem': '確定刪除這個項目?',
+
+      'hist.title': '流水帳', 'hist.add': '＋ 補登', 'hist.csv': '匯出 CSV',
+      'hist.empty': '還沒有紀錄<br>上班日過完會自動記在這裡', 'hist.ot': '加班 {t}', 'hist.meta': '工時 {t}・休息 {n} 分', 'hist.manual': '補登', 'hist.auto': '自動',
+      'hist.del': '刪除這筆紀錄', 'confirm.delShift': '確定刪除這筆紀錄?', 'hist.noExport': '目前沒有可匯出的紀錄',
+      'dlg.shift.title': '補登班次', 'dlg.shift.start': '上班時間', 'dlg.shift.end': '下班時間(可跨午夜)', 'dlg.shift.break': '休息(分鐘)',
+      'dlg.shift.add': '加入紀錄', 'dlg.shift.badEnd': '下班時間要晚於上班時間', 'dlg.shift.tooLong': '單一班次不能超過 24 小時',
+      'dlg.shift.preview': '預計工時 {t}・薪資 {amt}', 'toast.shiftAdded': '已加入紀錄',
+      'csv.head': '日期,上班,下班,工時(小時),休息(分鐘),薪資,時薪',
+
+      'stats.monthTitle': '{y} 年 {m} 月', 'stats.prev': '上個月', 'stats.next': '下個月',
+      'stats.empty': '這個月還沒有紀錄,牛馬還在醞釀', 'stats.earned': '本月累積薪資', 'stats.hours': '總工時',
+      'stats.days': '出勤天數', 'stats.daysVal': '{n} 天', 'stats.avg': '平均每個工作日', 'stats.eff': '實際平均時薪',
+      'stats.ot': '加班工時', 'stats.best': '最高單日', 'stats.daily': '每日薪資',
+
+      'set.basic': '基本設定', 'set.hourly': '時薪', 'set.days': '一週上哪幾天班', 'set.start': '上班時間', 'set.end': '下班時間',
+      'set.summary': '每週 {n} 天・每天實際計薪 {h}・預估月薪約 {pay}',
+      'set.holidayNote': '國定假日不會自動放假,當天到首頁按「今天放假」就好。',
+      'set.breaks': '休息時間(不計薪)', 'set.breaksNote': '到這些時段會自動停止賺錢,例如午休。', 'set.addBreak': '＋ 新增', 'set.noBreaks': '沒有休息時段。',
+      'set.enable': '啟用', 'set.adv': '進階:加班倍率與每日目標',
+      'set.otOn': '啟用加班倍率', 'set.regular': '正常工時(小時)', 'set.h1': '第一階加班(小時)', 'set.m1': '第一階倍率', 'set.m2': '之後倍率',
+      'set.otNote': '預設照勞基法平日加班:前 2 小時 1.34 倍、之後 1.67 倍。倍率看「當天累計工時」,實際以公司規定為準。',
+      'set.goal': '每日薪資目標(0 = 自動:時薪 × 正常工時)',
+      'set.notify': '提醒與顯示', 'set.every': '多久提示一次「今天賺了多少」', 'set.never': '不要吵我', 'set.15': '每 15 分鐘', 'set.30': '每 30 分鐘', 'set.60': '每 1 小時',
+      'set.sysNotify': '同時用 Windows 系統通知', 'set.hide': '隱藏金額(老闆鍵:按 H)', 'set.currency': '貨幣',
+      'set.data': '資料', 'set.dataNote': '所有資料只存在這台電腦的瀏覽器,沒有上傳到任何地方。',
+      'set.backup': '匯出備份', 'set.restore': '匯入備份', 'set.reset': '還原預設值', 'set.done': '完成',
+      'confirm.reset': '確定把「設定與換算項目」還原成預設值嗎?(流水帳會保留)',
+      'confirm.restore': '匯入會覆蓋目前的設定、換算項目與紀錄,確定嗎?', 'toast.restored': '已匯入備份', 'toast.badFile': '檔案格式不對喔',
+
+      'share.title': '今日牛馬成果', 'share.today': '今天累積薪資', 'share.worked': '工時 {t}', 'share.unlocked': '已解鎖', 'share.keepGoing': '第一份快到了,繼續撐',
+      'share.foot': '薪資等值僅供參考,不代表扣稅與其他成本後的可支配金額', 'share.show': '顯示累積金額', 'share.note': '成果卡不含時薪、公司名稱等個人資料。',
+      'share.dialog': '薪水成果卡', 'share.close': '關閉', 'share.copy': '複製圖片', 'share.save': '下載 PNG', 'toast.copied': '已複製圖片', 'toast.copyFail': '這個瀏覽器不能複製,改用下載吧',
+
+      'time.min': '{n} 分鐘', 'time.hm': '{h} 小時 {m} 分', 'time.h': '{h} 小時',
+      'wd.0': '日', 'wd.1': '一', 'wd.2': '二', 'wd.3': '三', 'wd.4': '四', 'wd.5': '五', 'wd.6': '六', 'wd.short': '週{d}',
+      'date.md': '{m}/{d}',
+
+      'cat.coffee': '咖啡', 'cat.bento': '便當', 'cat.drink': '手搖飲', 'cat.hotpot': '火鍋', 'cat.fun': '娛樂', 'cat.transit': '交通', 'cat.goal': '個人目標',
+      'icon.coffee_to_go': '咖啡', 'icon.taiwanese_bento': '便當', 'icon.bubble_tea': '手搖飲', 'icon.hotpot': '火鍋', 'icon.movie_ticket_popcorn': '電影',
+      'icon.metro_card': '交通', 'icon.travel_suitcase_passport': '旅行', 'icon.smartphone': '手機', 'icon.camera': '相機',
+      'item.americano': '7-ELEVEN 大杯美式', 'item.latte': '7-ELEVEN 大杯拿鐵', 'item.bento': '便當', 'item.boba': '手搖飲',
+      'item.hotpot': '石二鍋', 'item.movie': '電影票', 'item.travel': '旅行基金',
+      'city.台北市': '台北市', 'city.新北市': '新北市', 'city.基隆市': '基隆市', 'city.桃園市': '桃園市', 'city.新竹市': '新竹市', 'city.新竹縣': '新竹縣',
+      'city.苗栗縣': '苗栗縣', 'city.台中市': '台中市', 'city.彰化縣': '彰化縣', 'city.南投縣': '南投縣', 'city.雲林縣': '雲林縣', 'city.嘉義市': '嘉義市',
+      'city.嘉義縣': '嘉義縣', 'city.台南市': '台南市', 'city.高雄市': '高雄市', 'city.屏東縣': '屏東縣', 'city.宜蘭縣': '宜蘭縣', 'city.花蓮縣': '花蓮縣',
+      'city.台東縣': '台東縣', 'city.澎湖縣': '澎湖縣', 'city.金門縣': '金門縣', 'city.連江縣': '連江縣',
+      'cur.TWD': '新台幣',
+    },
+
+    en: {
+      'doc.title': 'WorkHorse – watch your paycheck tick',
+      'brand.name': 'WorkHorse',
+      'tab.home': 'Today', 'tab.rewards': 'Worth It', 'tab.history': 'Log', 'tab.stats': 'Stats',
+      'btn.share': 'Make a brag card', 'btn.settings': 'Settings', 'lang.title': 'Language',
+      'phase.before': 'Pre-grind', 'phase.working': 'Grinding', 'phase.break': 'Recharging', 'phase.done': 'Clocked out!', 'phase.off': 'Day off',
+      'hero.label': 'Earned so far today',
+      'rate.working': '{rate}/hr・{perMin} every minute', 'rate.ot': '・OT ×{m}', 'rate.idle': '{rate}/hr', 'rate.paused': '{rate}/hr・pay paused',
+      'goal.label': 'Daily goal',
+      'worked.label': 'Time grinding', 'worked.sub': '{n} min on break',
+      'until.end': 'Until freedom', 'until.end.sub': 'Out at {t}',
+      'until.start': 'Until work starts', 'until.start.sub': 'In at {t}',
+      'done.title': 'Free at last', 'done.sub': 'Go touch some grass',
+      'off.title': 'Next shift', 'off.sub': 'Enjoy the nothing',
+      'q.off': 'Day off / sick day', 'q.offUndo': 'Undo day off', 'q.work': 'Working today anyway', 'q.workUndo': 'Undo extra shift',
+      'q.ot': 'Overtime +30 min', 'q.otMore': '{n} min OT・add 30 more', 'q.otReset': 'Reset',
+      'toast.offOn': 'Got it. No pay today, go do nothing.', 'toast.offOff': 'Fine, back to the grind.', 'toast.workOn': 'Weekend shift... pay is on.',
+      'toast.workOff': 'Extra shift cancelled', 'toast.otAdd': '+30 min of your soul, noted.', 'toast.otReset': 'Overtime reset',
+      'next.pre.before': 'After clock-in: ', 'next.pre.later': 'Next shift: ',
+      'next.consumable': '{pre}{time} more and {name} is yours', 'next.goal': '{pre}{time} more and you unlock {name}',
+      'next.allDone': 'Every goal unlocked. Absolute legend.', 'next.none': 'Add a little goal in "Worth It"',
+      'toast.first': 'Tap the gear (top right) to set your wage and work hours',
+      'toast.earned': 'You\'ve made {amt} today', 'toast.notifyTitle': 'WorkHorse',
+
+      'items.title': 'What your money buys', 'items.add': '+ Add', 'items.city': 'Lunch box prices for',
+      'items.note': 'Prices are rough guesses, edit them freely. This is "wage equivalent", not what\'s left after tax, so don\'t go wild.',
+      'item.unit': ' pcs', 'item.gapNext': '{amt} to the next one', 'item.gap': '{amt} to go',
+      'item.left': '<b>{time}</b> of work left', 'item.eta': '(around {clock})', 'item.days': '(~{n} work days)', 'item.ot': '(needs overtime)',
+      'item.later': 'about <b>{time}</b> next shift', 'item.unlocked': 'Unlocked', 'item.goalTarget': 'Goal {price}', 'item.goalSaved': '(incl. {saved} saved)',
+      'item.disabled': 'Disabled', 'item.invalid': 'Invalid price', 'item.noEstimate': 'No idea',
+      'item.edit': 'Edit', 'item.off': 'Disable', 'item.on': 'Enable', 'item.goalTag': '・goal',
+      'item.empty': 'Nothing here yet. Hit "+ Add".',
+      'toast.city': 'Lunch box price set to {city}: {price} (edit anytime)',
+      'dlg.item.add': 'New item', 'dlg.item.edit': 'Edit item', 'dlg.icon': 'Icon', 'dlg.category': 'Category', 'dlg.name': 'Name', 'dlg.price': 'Price',
+      'dlg.kind': 'Type', 'dlg.kind.consumable': 'Repeatable (shows how many you can buy)', 'dlg.kind.goal': 'One-time goal (shows unlock progress)', 'dlg.saved': 'Already saved (optional)',
+      'dlg.delete': 'Delete', 'dlg.cancel': 'Cancel', 'dlg.save': 'Save', 'confirm.delItem': 'Delete this item?',
+
+      'hist.title': 'Paycheck log', 'hist.add': '+ Add', 'hist.csv': 'Export CSV',
+      'hist.empty': 'Nothing yet<br>Finished workdays land here on their own', 'hist.ot': 'OT {t}', 'hist.meta': '{t} worked・{n} min break', 'hist.manual': 'manual', 'hist.auto': 'auto',
+      'hist.del': 'Delete this entry', 'confirm.delShift': 'Delete this entry?', 'hist.noExport': 'Nothing to export yet',
+      'dlg.shift.title': 'Add a past shift', 'dlg.shift.start': 'Start', 'dlg.shift.end': 'End (can cross midnight)', 'dlg.shift.break': 'Break (minutes)',
+      'dlg.shift.add': 'Add to log', 'dlg.shift.badEnd': 'End has to be after start', 'dlg.shift.tooLong': 'A shift can\'t be over 24 hours (you need sleep)',
+      'dlg.shift.preview': '{t} worked・{amt}', 'toast.shiftAdded': 'Added to the log',
+      'csv.head': 'Date,Start,End,Hours,Break (min),Pay,Hourly wage',
+
+      'stats.monthTitle': '{m} {y}', 'stats.prev': 'Previous month', 'stats.next': 'Next month',
+      'stats.empty': 'Nothing this month yet', 'stats.earned': 'Earned this month', 'stats.hours': 'Total hours',
+      'stats.days': 'Days worked', 'stats.daysVal': '{n} days', 'stats.avg': 'Avg per workday', 'stats.eff': 'Real hourly rate',
+      'stats.ot': 'Overtime', 'stats.best': 'Best day', 'stats.daily': 'Daily earnings',
+
+      'set.basic': 'The basics', 'set.hourly': 'Hourly wage', 'set.days': 'Which days do you work?', 'set.start': 'Start time', 'set.end': 'End time',
+      'set.summary': '{n} days a week・{h} paid per day・about {pay} a month',
+      'set.holidayNote': 'Public holidays aren\'t automatic. Just tap "Day off" on the Today screen.',
+      'set.breaks': 'Breaks (unpaid)', 'set.breaksNote': 'Pay stops during these, like lunch.', 'set.addBreak': '+ Add', 'set.noBreaks': 'No breaks set.',
+      'set.enable': 'Enabled', 'set.adv': 'Advanced: overtime & daily goal',
+      'set.otOn': 'Use overtime multipliers', 'set.regular': 'Regular hours', 'set.h1': 'First OT tier (hours)', 'set.m1': 'First tier ×', 'set.m2': 'After that ×',
+      'set.otNote': 'Defaults follow Taiwan\'s labor law: 1.34× for the first 2 OT hours, 1.67× after. Based on hours worked that day. Check your own contract.',
+      'set.goal': 'Daily earnings goal (0 = auto: wage × regular hours)',
+      'set.notify': 'Nudges & display', 'set.every': 'Pop up "you\'ve made this much"', 'set.never': 'Leave me alone', 'set.15': 'Every 15 min', 'set.30': 'Every 30 min', 'set.60': 'Every hour',
+      'set.sysNotify': 'Also use system notifications', 'set.hide': 'Hide amounts (boss key: press H)', 'set.currency': 'Currency',
+      'set.data': 'Your data', 'set.dataNote': 'Everything stays in this browser. Nothing is uploaded anywhere.',
+      'set.backup': 'Export backup', 'set.restore': 'Import backup', 'set.reset': 'Reset to defaults', 'set.done': 'Done',
+      'confirm.reset': 'Reset settings and items to defaults? (Your log stays.)',
+      'confirm.restore': 'Importing overwrites your settings, items and log. Sure?', 'toast.restored': 'Backup imported', 'toast.badFile': 'That file doesn\'t look right',
+
+      'share.title': 'Today\'s grind report', 'share.today': 'Earned today', 'share.worked': '{t} worked', 'share.unlocked': 'Unlocked', 'share.keepGoing': 'First one\'s almost here, keep going',
+      'share.foot': 'Wage equivalent only. Not your take-home pay after tax and other costs.', 'share.show': 'Show the amount', 'share.note': 'The card never includes your wage or employer.',
+      'share.dialog': 'Brag card', 'share.close': 'Close', 'share.copy': 'Copy image', 'share.save': 'Download PNG', 'toast.copied': 'Image copied', 'toast.copyFail': 'Can\'t copy here, try download',
+
+      'time.min': '{n} min', 'time.hm': '{h}h {m}m', 'time.h': '{h}h',
+      'wd.0': 'Sun', 'wd.1': 'Mon', 'wd.2': 'Tue', 'wd.3': 'Wed', 'wd.4': 'Thu', 'wd.5': 'Fri', 'wd.6': 'Sat', 'wd.short': '{d}',
+      'date.md': '{m}/{d}',
+      'month.0': 'Jan', 'month.1': 'Feb', 'month.2': 'Mar', 'month.3': 'Apr', 'month.4': 'May', 'month.5': 'Jun', 'month.6': 'Jul', 'month.7': 'Aug', 'month.8': 'Sep', 'month.9': 'Oct', 'month.10': 'Nov', 'month.11': 'Dec',
+
+      'cat.coffee': 'Coffee', 'cat.bento': 'Lunch', 'cat.drink': 'Drinks', 'cat.hotpot': 'Hot pot', 'cat.fun': 'Fun', 'cat.transit': 'Transit', 'cat.goal': 'My goal',
+      'icon.coffee_to_go': 'Coffee', 'icon.taiwanese_bento': 'Lunch box', 'icon.bubble_tea': 'Bubble tea', 'icon.hotpot': 'Hot pot', 'icon.movie_ticket_popcorn': 'Movie',
+      'icon.metro_card': 'Transit', 'icon.travel_suitcase_passport': 'Travel', 'icon.smartphone': 'Phone', 'icon.camera': 'Camera',
+      'item.americano': '7-ELEVEN Large Americano', 'item.latte': '7-ELEVEN Large Latte', 'item.bento': 'Lunch box (bento)', 'item.boba': 'Bubble tea',
+      'item.hotpot': 'Hot pot (Shi Er Guo)', 'item.movie': 'Movie ticket', 'item.travel': 'Travel fund',
+      'city.台北市': 'Taipei', 'city.新北市': 'New Taipei', 'city.基隆市': 'Keelung', 'city.桃園市': 'Taoyuan', 'city.新竹市': 'Hsinchu City', 'city.新竹縣': 'Hsinchu County',
+      'city.苗栗縣': 'Miaoli', 'city.台中市': 'Taichung', 'city.彰化縣': 'Changhua', 'city.南投縣': 'Nantou', 'city.雲林縣': 'Yunlin', 'city.嘉義市': 'Chiayi City',
+      'city.嘉義縣': 'Chiayi County', 'city.台南市': 'Tainan', 'city.高雄市': 'Kaohsiung', 'city.屏東縣': 'Pingtung', 'city.宜蘭縣': 'Yilan', 'city.花蓮縣': 'Hualien',
+      'city.台東縣': 'Taitung', 'city.澎湖縣': 'Penghu', 'city.金門縣': 'Kinmen', 'city.連江縣': 'Lienchiang',
+      'cur.TWD': 'New Taiwan dollar',
+    },
+
+    ja: {
+      'doc.title': '社畜給料メーター WorkHorse',
+      'brand.name': '社畜給料メーター',
+      'tab.home': '今日', 'tab.rewards': '買える?', 'tab.history': '記録', 'tab.stats': '成績',
+      'btn.share': '自慢カードを作る', 'btn.settings': '設定', 'lang.title': '言語',
+      'phase.before': '出勤前', 'phase.working': '社畜稼働中', 'phase.break': '充電中', 'phase.done': 'おつかれ!', 'phase.off': 'お休み',
+      'hero.label': '今日の稼ぎ',
+      'rate.working': '時給 {rate}・1分で {perMin}', 'rate.ot': '・残業 ×{m}', 'rate.idle': '時給 {rate}', 'rate.paused': '時給 {rate}・給料ストップ中',
+      'goal.label': '今日の目標',
+      'worked.label': '働いた時間', 'worked.sub': '休憩 {n} 分',
+      'until.end': '定時まで', 'until.end.sub': '{t} に解放',
+      'until.start': '始業まで', 'until.start.sub': '{t} に開始',
+      'done.title': '定時ダッシュ!', 'done.sub': 'よく耐えた',
+      'off.title': '次の出勤', 'off.sub': 'ゴロゴロしよう',
+      'q.off': '今日は休み/有休', 'q.offUndo': '休みを取り消す', 'q.work': '今日は出勤する', 'q.workUndo': '出勤を取り消す',
+      'q.ot': '残業 +30分', 'q.otMore': '残業 {n} 分・さらに +30', 'q.otReset': 'リセット',
+      'toast.offOn': 'りょ。今日は給料なし、思いっきりダラけよう', 'toast.offOff': 'しかたない、今日も働くか', 'toast.workOn': '休日出勤…今日も給料カウント中',
+      'toast.workOff': '出勤を取り消したよ', 'toast.otAdd': '魂を30分追加、おつかれさま', 'toast.otReset': '残業をリセットしたよ',
+      'next.pre.before': '始業したら、', 'next.pre.later': '次の出勤で、',
+      'next.consumable': '{pre}あと{time}がんばれば{name}ゲット', 'next.goal': '{pre}あと{time}がんばれば{name}を解放',
+      'next.allDone': '目標ぜんぶ解放。もう勝ち組です', 'next.none': '「何が買う?」で小さな目標を足そう',
+      'toast.first': '右上の歯車で、時給と勤務時間を設定してね',
+      'toast.earned': '今日はもう {amt} 稼いだよ', 'toast.notifyTitle': '社畜給料メーター',
+
+      'items.title': 'このお金で何が買える?', 'items.add': '＋ 追加', 'items.city': 'お弁当の目安(県市)',
+      'items.note': '値段はあくまで目安なので好きに直してOK。これは「給料換算」で、税金を引いた後の手取りじゃないよ。買いすぎ注意。',
+      'item.unit': ' 個分', 'item.gapNext': '次まであと {amt}', 'item.gap': 'あと {amt}',
+      'item.left': 'あと <b>{time}</b> 働く', 'item.eta': '({clock}ごろ)', 'item.days': '(約 {n} 勤務日)', 'item.ot': '(残業しないと無理)',
+      'item.later': '次の出勤で約 <b>{time}</b>', 'item.unlocked': '解放済み', 'item.goalTarget': '目標 {price}', 'item.goalSaved': '(貯金 {saved} 含む)',
+      'item.disabled': '無効', 'item.invalid': '値段がヘン', 'item.noEstimate': '計算できない',
+      'item.edit': '編集', 'item.off': '無効にする', 'item.on': '有効にする', 'item.goalTag': '・目標',
+      'item.empty': 'まだ何もないよ。「＋ 追加」から作ろう。',
+      'toast.city': 'お弁当の目安を {city} に変えたよ: {price}(自由に編集OK)',
+      'dlg.item.add': '項目を追加', 'dlg.item.edit': '項目を編集', 'dlg.icon': 'アイコン', 'dlg.category': 'カテゴリ', 'dlg.name': '名前', 'dlg.price': '値段',
+      'dlg.kind': 'タイプ', 'dlg.kind.consumable': '何度も買える(買える数を表示)', 'dlg.kind.goal': '一回きりの目標(進み具合を表示)', 'dlg.saved': '貯めた金額(任意)',
+      'dlg.delete': '削除', 'dlg.cancel': 'やめる', 'dlg.save': '保存', 'confirm.delItem': 'この項目を消す?',
+
+      'hist.title': '給料の記録', 'hist.add': '＋ 追加', 'hist.csv': 'CSV出力',
+      'hist.empty': 'まだ何もないよ<br>勤務日が終わると自動で入るよ', 'hist.ot': '残業 {t}', 'hist.meta': '勤務 {t}・休憩 {n} 分', 'hist.manual': '手動', 'hist.auto': '自動',
+      'hist.del': 'この記録を消す', 'confirm.delShift': 'この記録を消す?', 'hist.noExport': '出力できる記録がまだないよ',
+      'dlg.shift.title': '過去の勤務を追加', 'dlg.shift.start': '開始', 'dlg.shift.end': '終了(日またぎOK)', 'dlg.shift.break': '休憩(分)',
+      'dlg.shift.add': '記録に追加', 'dlg.shift.badEnd': '終了は開始より後にしてね', 'dlg.shift.tooLong': '24時間超えはさすがに寝て',
+      'dlg.shift.preview': '勤務 {t}・{amt}', 'toast.shiftAdded': '記録に追加したよ',
+      'csv.head': '日付,開始,終了,勤務時間(時間),休憩(分),給料,時給',
+
+      'stats.monthTitle': '{y}年{m}月', 'stats.prev': '前の月', 'stats.next': '次の月',
+      'stats.empty': '今月はまだ記録なし', 'stats.earned': '今月の稼ぎ', 'stats.hours': '合計勤務時間',
+      'stats.days': '出勤日数', 'stats.daysVal': '{n} 日', 'stats.avg': '1勤務日の平均', 'stats.eff': '実質の時給',
+      'stats.ot': '残業時間', 'stats.best': 'ベスト日', 'stats.daily': '日ごとの稼ぎ',
+
+      'set.basic': 'まずはこれだけ', 'set.hourly': '時給', 'set.days': '出勤する曜日', 'set.start': '始業', 'set.end': '終業',
+      'set.summary': '週 {n} 日・1日の給料対象 {h}・月収の目安 {pay}',
+      'set.holidayNote': '祝日は自動で休みにならないよ。当日に「今日は休み」を押してね。',
+      'set.breaks': '休憩(給料なし)', 'set.breaksNote': 'この時間は自動で給料ストップ。お昼休みとか。', 'set.addBreak': '＋ 追加', 'set.noBreaks': '休憩なし。',
+      'set.enable': '有効', 'set.adv': '上級:残業倍率と1日の目標',
+      'set.otOn': '残業倍率を使う', 'set.regular': '通常の勤務時間(時間)', 'set.h1': '残業第1段階(時間)', 'set.m1': '第1段階の倍率', 'set.m2': 'それ以降の倍率',
+      'set.otNote': '初期値は台湾の労働基準法どおり(最初の2時間 1.34倍、以降 1.67倍)。その日の勤務時間で決まるよ。実際は会社のルールを確認してね。',
+      'set.goal': '1日の稼ぎ目標(0 = 自動:時給 × 通常勤務時間)',
+      'set.notify': 'お知らせと表示', 'set.every': '「今日これだけ稼いだ」を知らせる間隔', 'set.never': '静かにして', 'set.15': '15分ごと', 'set.30': '30分ごと', 'set.60': '1時間ごと',
+      'set.sysNotify': 'システム通知も使う', 'set.hide': '金額を隠す(ボスキー:Hキー)', 'set.currency': '通貨',
+      'set.data': 'データ', 'set.dataNote': 'データはこのブラウザの中だけ。どこにも送られないよ。',
+      'set.backup': 'バックアップ出力', 'set.restore': 'バックアップ読込', 'set.reset': '初期値に戻す', 'set.done': '完了',
+      'confirm.reset': '設定と項目を初期値に戻す?(記録は残るよ)',
+      'confirm.restore': '読み込むと今の設定・項目・記録が上書きされるよ。いい?', 'toast.restored': 'バックアップを読み込んだよ', 'toast.badFile': 'ファイルの形式がちがうみたい',
+
+      'share.title': '今日の社畜レポート', 'share.today': '今日の稼ぎ', 'share.worked': '勤務 {t}', 'share.unlocked': '解放済み', 'share.keepGoing': '最初の1個はもうすぐ、がんばれ',
+      'share.foot': '給料換算の目安です。税金などを引いた手取りではありません', 'share.show': '金額を表示', 'share.note': 'カードには時給や会社名は入らないよ。',
+      'share.dialog': '自慢カード', 'share.close': '閉じる', 'share.copy': '画像をコピー', 'share.save': 'PNGを保存', 'toast.copied': '画像をコピーしたよ', 'toast.copyFail': 'ここではコピーできないよ。保存してね',
+
+      'time.min': '{n}分', 'time.hm': '{h}時間{m}分', 'time.h': '{h}時間',
+      'wd.0': '日', 'wd.1': '月', 'wd.2': '火', 'wd.3': '水', 'wd.4': '木', 'wd.5': '金', 'wd.6': '土', 'wd.short': '{d}曜',
+      'date.md': '{m}/{d}',
+
+      'cat.coffee': 'コーヒー', 'cat.bento': 'お弁当', 'cat.drink': 'ドリンク', 'cat.hotpot': '鍋', 'cat.fun': '娯楽', 'cat.transit': '交通', 'cat.goal': 'マイ目標',
+      'icon.coffee_to_go': 'コーヒー', 'icon.taiwanese_bento': 'お弁当', 'icon.bubble_tea': 'タピオカ', 'icon.hotpot': '鍋', 'icon.movie_ticket_popcorn': '映画',
+      'icon.metro_card': '交通', 'icon.travel_suitcase_passport': '旅行', 'icon.smartphone': 'スマホ', 'icon.camera': 'カメラ',
+      'item.americano': '7-ELEVEN Lサイズ アメリカーノ', 'item.latte': '7-ELEVEN Lサイズ ラテ', 'item.bento': 'お弁当', 'item.boba': 'タピオカドリンク',
+      'item.hotpot': '一人鍋(石二鍋)', 'item.movie': '映画チケット', 'item.travel': '旅行貯金',
+      'city.台北市': '台北市', 'city.新北市': '新北市', 'city.基隆市': '基隆市', 'city.桃園市': '桃園市', 'city.新竹市': '新竹市', 'city.新竹縣': '新竹県',
+      'city.苗栗縣': '苗栗県', 'city.台中市': '台中市', 'city.彰化縣': '彰化県', 'city.南投縣': '南投県', 'city.雲林縣': '雲林県', 'city.嘉義市': '嘉義市',
+      'city.嘉義縣': '嘉義県', 'city.台南市': '台南市', 'city.高雄市': '高雄市', 'city.屏東縣': '屏東県', 'city.宜蘭縣': '宜蘭県', 'city.花蓮縣': '花蓮県',
+      'city.台東縣': '台東県', 'city.澎湖縣': '澎湖県', 'city.金門縣': '金門県', 'city.連江縣': '連江県',
+      'cur.TWD': '新台湾ドル',
+    },
+  };
+
+  let lang = 'zh-TW';
+
+  function detect() {
+    const n = (navigator.language || 'zh-TW').toLowerCase();
+    if (n.startsWith('ja')) return 'ja';
+    if (n.startsWith('zh')) return 'zh-TW';
+    return n.startsWith('en') ? 'en' : 'zh-TW';
+  }
+  function set(l) { lang = D[l] ? l : 'zh-TW'; document.documentElement.lang = lang === 'zh-TW' ? 'zh-Hant' : lang; }
+  function t(key, vars) {
+    let s = (D[lang] && D[lang][key]);
+    if (s == null) s = D['zh-TW'][key];
+    if (s == null) return key;
+    if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m));
+    return s;
+  }
+  /** 套用到靜態 HTML */
+  function apply(root) {
+    const r = root || document;
+    for (const el of r.querySelectorAll('[data-i18n]')) el.innerHTML = t(el.dataset.i18n);
+    for (const el of r.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
+    for (const el of r.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', t(el.dataset.i18nAria));
+    document.title = t('doc.title');
+  }
+  return { LANGS, D, t, set, apply, detect, get lang() { return lang; }, get locale() { return LANGS[lang].locale; } };
+})();

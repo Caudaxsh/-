@@ -16,66 +16,60 @@
   <header class="topbar">
     <div class="brand">
       <img class="logo" data-asset="brand.cow_coffee_logo" alt="" draggable="false">
-      <div><b>牛馬薪水計</b><small>WorkHorse</small></div>
+      <div><b data-i18n="brand.name">牛馬薪水計</b><small>WorkHorse</small></div>
     </div>
     <div class="tools">
-      <button class="pill" id="btnMini" title="縮成迷你視窗">迷你</button>
-      <button class="icon-btn" id="btnShare" aria-label="產生成果卡" title="產生成果卡"><img class="ico" data-asset="ui_icons.share" alt=""></button>
-      <button class="icon-btn" id="btnSettings" aria-label="設定" title="設定"><img class="ico" data-asset="ui_icons.settings_gear" alt=""></button>
+      <select class="pill-select" id="langSelect" data-i18n-aria="lang.title" data-i18n-title="lang.title"></select>
+      <button class="icon-btn" id="btnShare" data-i18n-aria="btn.share" data-i18n-title="btn.share"><img class="ico" data-asset="ui_icons.share" alt=""></button>
+      <button class="icon-btn" id="btnSettings" data-i18n-aria="btn.settings" data-i18n-title="btn.settings"><img class="ico" data-asset="ui_icons.settings_gear" alt=""></button>
     </div>
   </header>
 
   <nav class="tabs" id="tabs">
-    <button data-view="home" class="active"><img class="ico sm" data-asset="ui_icons.home" alt="">今日</button>
-    <button data-view="rewards"><img class="ico sm" data-asset="ui_icons.wallet" alt="">換算</button>
-    <button data-view="history"><img class="ico sm" data-asset="ui_icons.time_history" alt="">紀錄</button>
-    <button data-view="stats"><img class="ico sm" data-asset="ui_icons.analytics_chart" alt="">統計</button>
+    <button data-view="home" class="active"><img class="ico sm" data-asset="ui_icons.home" alt=""><span data-i18n="tab.home">今日</span></button>
+    <button data-view="rewards"><img class="ico sm" data-asset="ui_icons.wallet" alt=""><span data-i18n="tab.rewards">換算</span></button>
+    <button data-view="history"><img class="ico sm" data-asset="ui_icons.time_history" alt=""><span data-i18n="tab.history">紀錄</span></button>
+    <button data-view="stats"><img class="ico sm" data-asset="ui_icons.analytics_chart" alt=""><span data-i18n="tab.stats">統計</span></button>
   </nav>
 
   <main>
     <!-- 今日 -->
     <section class="view active" id="view-home">
       <div class="card hero">
-        <div class="hero-top">
-          <span class="chip" id="phaseChip">尚未上班</span>
-          <span class="mini-timer"><img class="ico sm" data-asset="ui_icons.stopwatch" alt=""><span data-bind="worked">0:00:00</span></span>
-        </div>
-        <div class="hero-label">今日累積薪資</div>
+        <div class="hero-top"><span class="chip" id="phaseChip">—</span></div>
+        <div class="hero-label" data-i18n="hero.label">今天已經賺到</div>
         <div class="money amount"><span class="cur" data-bind="cur">NT$</span> <span data-bind="earned">0.00</span></div>
-        <div class="rate" data-bind="rateLine">時薪 —</div>
+        <div class="rate" data-bind="rateLine"></div>
         <img class="mascot" id="mascot" alt="" draggable="false">
         <div class="goal">
-          <div class="goal-row"><span><img class="ico xs" data-asset="ui_icons.goal_flag" alt="">今日目標 <b class="amount" data-bind="goalAmt">—</b></span><b data-bind="goalPct">0%</b></div>
+          <div class="goal-row"><span><img class="ico xs" data-asset="ui_icons.goal_flag" alt=""><span data-i18n="goal.label">今日目標</span> <b class="amount" data-bind="goalAmt">—</b></span><b data-bind="goalPct">0%</b></div>
           <div class="bar"><i id="goalBar"></i></div>
         </div>
       </div>
 
       <div class="duo">
-        <div class="card mini-info"><img class="ico" data-asset="ui_icons.clock" alt=""><div><small>已工作</small><b data-bind="worked">0:00:00</b><em data-bind="breakInfo">休息 0:00</em></div></div>
-        <div class="card mini-info"><img class="ico" data-asset="ui_icons.calendar" alt=""><div><small data-bind="endLabel">距離預定下班</small><b data-bind="toEnd">—</b><em data-bind="endInfo">預定 —</em></div></div>
+        <div class="card mini-info"><img class="ico" data-asset="ui_icons.clock" alt=""><div><small data-i18n="worked.label">已工作</small><b data-bind="worked">0:00:00</b><em data-bind="breakInfo"></em></div></div>
+        <div class="card mini-info"><img class="ico" data-asset="ui_icons.calendar" alt=""><div><small data-bind="endLabel">—</small><b data-bind="toEnd">—</b><em data-bind="endInfo"></em></div></div>
       </div>
 
-      <div class="controls">
-        <button class="btn sage" id="btnStart"><img class="ico" data-asset="ui_icons.play" alt=""><span>上班</span></button>
-        <button class="btn butter" id="btnBreak"><img class="ico" data-asset="ui_icons.pause" alt=""><span id="breakLabel">休息</span></button>
-        <button class="btn rose" id="btnEnd"><img class="ico" data-asset="ui_icons.stop" alt=""><span>下班</span></button>
+      <div class="quick">
+        <button class="btn" id="btnOff"><img class="ico sm" data-asset="ui_icons.calendar" alt=""><span id="offLabel"></span></button>
+        <button class="btn" id="btnOt"><img class="ico sm" data-asset="ui_icons.stopwatch" alt=""><span id="otLabel"></span></button>
+        <button class="btn small" id="btnOtReset" hidden data-i18n="q.otReset">重設</button>
       </div>
 
-      <button class="card next" id="nextReward" title="查看換算">
-        <span class="next-ico" id="nextIcon"></span>
-        <span class="next-text" id="nextText">設定時薪後,這裡會顯示下一個可以換算的目標</span>
-      </button>
+      <button class="card next" id="nextReward"><span class="next-ico"></span><span class="next-text"></span></button>
     </section>
 
     <!-- 換算 -->
     <section class="view" id="view-rewards">
       <div class="card">
         <div class="row between">
-          <h2>薪資換算器</h2>
-          <button class="btn small" id="btnAddItem">＋ 新增</button>
+          <h2 data-i18n="items.title">薪資換算器</h2>
+          <button class="btn small" id="btnAddItem" data-i18n="items.add">＋ 新增</button>
         </div>
-        <label class="field inline"><span>便當參考縣市</span><select id="citySelect"></select></label>
-        <p class="note">價格皆為可修改的參考值。顯示的是「薪資等值」,不代表扣稅與其他成本後的實際可支配金額。</p>
+        <label class="field inline"><span data-i18n="items.city">便當參考縣市</span><select id="citySelect"></select></label>
+        <p class="note" data-i18n="items.note"></p>
       </div>
       <div id="itemList"></div>
     </section>
@@ -84,10 +78,10 @@
     <section class="view" id="view-history">
       <div class="card">
         <div class="row between">
-          <h2>班次紀錄</h2>
+          <h2 data-i18n="hist.title">班次紀錄</h2>
           <div class="row">
-            <button class="btn small" id="btnAddShift">＋ 補登</button>
-            <button class="btn small" id="btnExportCsv"><img class="ico xs" data-asset="ui_icons.download" alt="">匯出 CSV</button>
+            <button class="btn small" id="btnAddShift" data-i18n="hist.add">＋ 補登</button>
+            <button class="btn small" id="btnExportCsv"><img class="ico xs" data-asset="ui_icons.download" alt=""><span data-i18n="hist.csv">匯出 CSV</span></button>
           </div>
         </div>
       </div>
@@ -98,9 +92,9 @@
     <section class="view" id="view-stats">
       <div class="card">
         <div class="row between">
-          <button class="icon-btn text" id="btnPrevMonth" aria-label="上個月">‹</button>
+          <button class="icon-btn text" id="btnPrevMonth" data-i18n-aria="stats.prev">‹</button>
           <h2 id="monthTitle">—</h2>
-          <button class="icon-btn text" id="btnNextMonth" aria-label="下個月">›</button>
+          <button class="icon-btn text" id="btnNextMonth" data-i18n-aria="stats.next">›</button>
         </div>
       </div>
       <div id="statsBody"></div>
@@ -109,55 +103,53 @@
     <!-- 設定 -->
     <section class="view" id="view-settings">
       <div class="card">
-        <div class="row between"><h2>時薪與預定上下班</h2><button class="btn small" id="btnBackHome">完成</button></div>
-        <label class="field"><span>時薪 (<em data-bind="cur">NT$</em>)</span>
+        <div class="row between"><h2 data-i18n="set.basic">基本設定</h2><button class="btn small" id="btnBackHome" data-i18n="set.done">完成</button></div>
+        <label class="field"><span><span data-i18n="set.hourly">時薪</span> (<em data-bind="cur">NT$</em>)</span>
           <input type="number" min="0" step="0.01" inputmode="decimal" data-set="hourly"></label>
+        <div class="field"><span data-i18n="set.days">一週上哪幾天班</span><div class="chips" id="dayChips"></div></div>
         <div class="grid2">
-          <label class="field"><span>預定上班</span><input type="time" data-set="start"></label>
-          <label class="field"><span>預定下班</span><input type="time" data-set="end"></label>
+          <label class="field"><span data-i18n="set.start">上班時間</span><input type="time" data-set="start"></label>
+          <label class="field"><span data-i18n="set.end">下班時間</span><input type="time" data-set="end"></label>
         </div>
-        <label class="field"><span>今日薪資目標(0 = 自動:時薪 × 正常工時)</span>
-          <input type="number" min="0" step="1" data-set="dailyGoal"></label>
-        <p class="note" id="timeNote"></p>
+        <p class="summary" id="timeNote"></p>
+        <p class="note" data-i18n="set.holidayNote"></p>
       </div>
 
       <div class="card">
-        <div class="row between"><h2>固定休息時段</h2><button class="btn small" id="btnAddBreak">＋ 新增</button></div>
-        <p class="note">上班期間遇到這些時段會自動暫停計薪(例如午休)。也可以隨時按首頁的「休息」手動暫停。</p>
+        <div class="row between"><h2 data-i18n="set.breaks">休息時間</h2><button class="btn small" id="btnAddBreak" data-i18n="set.addBreak">＋ 新增</button></div>
+        <p class="note" data-i18n="set.breaksNote"></p>
         <div id="breakList"></div>
       </div>
 
-      <div class="card">
-        <h2>加班倍率</h2>
-        <label class="check"><input type="checkbox" data-set="ot.on"> 啟用加班倍率</label>
+      <details class="card adv">
+        <summary data-i18n="set.adv">進階</summary>
+        <label class="check"><input type="checkbox" data-set="ot.on"> <span data-i18n="set.otOn">啟用加班倍率</span></label>
         <div class="grid2">
-          <label class="field"><span>正常工時(小時)</span><input type="number" min="0" step="0.5" data-set="regularHours"></label>
-          <label class="field"><span>第一階加班(小時)</span><input type="number" min="0" step="0.5" data-set="ot.h1"></label>
-          <label class="field"><span>第一階倍率</span><input type="number" min="1" step="0.01" data-set="ot.m1"></label>
-          <label class="field"><span>之後倍率</span><input type="number" min="1" step="0.01" data-set="ot.m2"></label>
+          <label class="field"><span data-i18n="set.regular">正常工時</span><input type="number" min="0" step="0.5" data-set="regularHours"></label>
+          <label class="field"><span data-i18n="set.h1">第一階加班</span><input type="number" min="0" step="0.5" data-set="ot.h1"></label>
+          <label class="field"><span data-i18n="set.m1">第一階倍率</span><input type="number" min="1" step="0.01" data-set="ot.m1"></label>
+          <label class="field"><span data-i18n="set.m2">之後倍率</span><input type="number" min="1" step="0.01" data-set="ot.m2"></label>
         </div>
-        <p class="note">預設依勞基法平日加班:前 2 小時 1.34 倍、之後 1.67 倍。倍率依「該班次累計工時」計算,實際以公司規定為準。</p>
+        <p class="note" data-i18n="set.otNote"></p>
+        <label class="field"><span data-i18n="set.goal">每日目標</span><input type="number" min="0" step="1" data-set="dailyGoal"></label>
+      </details>
+
+      <div class="card">
+        <h2 data-i18n="set.notify">提醒與顯示</h2>
+        <label class="field"><span data-i18n="set.every">提示間隔</span>
+          <select data-set="notifyEvery" id="notifySelect"></select></label>
+        <label class="check"><input type="checkbox" data-set="useSystemNotification"> <span data-i18n="set.sysNotify">系統通知</span></label>
+        <label class="check"><input type="checkbox" data-set="hideAmount"> <span data-i18n="set.hide">隱藏金額</span></label>
+        <label class="field"><span data-i18n="set.currency">貨幣</span><select data-set="currency" id="currencySelect"></select></label>
       </div>
 
       <div class="card">
-        <h2>提醒與外觀</h2>
-        <label class="field"><span>每隔多久提示「今天賺了多少」</span>
-          <select data-set="notifyEvery">
-            <option value="0">不提醒</option><option value="15">15 分鐘</option>
-            <option value="30">30 分鐘</option><option value="60">1 小時</option>
-          </select></label>
-        <label class="check"><input type="checkbox" data-set="useSystemNotification"> 同時使用 Windows 系統通知</label>
-        <label class="check"><input type="checkbox" data-set="hideAmount"> 隱藏金額(老闆鍵:按 H)</label>
-        <label class="field"><span>貨幣</span><select data-set="currency" id="currencySelect"></select></label>
-      </div>
-
-      <div class="card">
-        <h2>資料</h2>
-        <p class="note">所有資料只存在這台電腦的瀏覽器裡。</p>
+        <h2 data-i18n="set.data">資料</h2>
+        <p class="note" data-i18n="set.dataNote"></p>
         <div class="row wrap">
-          <button class="btn small" id="btnBackup"><img class="ico xs" data-asset="ui_icons.download" alt="">匯出備份</button>
-          <button class="btn small" id="btnRestore">匯入備份</button>
-          <button class="btn small danger" id="btnReset">還原預設值</button>
+          <button class="btn small" id="btnBackup"><img class="ico xs" data-asset="ui_icons.download" alt=""><span data-i18n="set.backup">匯出備份</span></button>
+          <button class="btn small" id="btnRestore" data-i18n="set.restore">匯入備份</button>
+          <button class="btn small danger" id="btnReset" data-i18n="set.reset">還原預設值</button>
         </div>
         <input type="file" id="fileRestore" accept="application/json" hidden>
       </div>
@@ -170,25 +162,25 @@
 <!-- 換算項目編輯 -->
 <dialog id="itemDialog">
   <form method="dialog" id="itemForm">
-    <h3 id="itemDialogTitle">編輯項目</h3>
+    <h3 id="itemDialogTitle"></h3>
     <div class="row top">
       <span class="icon-preview"><img id="itemIconPreview" alt=""></span>
-      <label class="field grow"><span>圖示</span><select name="icon"></select></label>
+      <label class="field grow"><span data-i18n="dlg.icon">圖示</span><select name="icon"></select></label>
     </div>
-    <label class="field"><span>類別</span><select name="category"></select></label>
-    <label class="field"><span>名稱</span><input name="name" required maxlength="30"></label>
-    <label class="field"><span>價格</span><input name="price" type="number" min="0.01" step="0.01" required></label>
-    <label class="field"><span>類型</span>
+    <label class="field"><span data-i18n="dlg.category">類別</span><select name="category"></select></label>
+    <label class="field"><span data-i18n="dlg.name">名稱</span><input name="name" required maxlength="30"></label>
+    <label class="field"><span data-i18n="dlg.price">價格</span><input name="price" type="number" min="0.01" step="0.01" required></label>
+    <label class="field"><span data-i18n="dlg.kind">類型</span>
       <select name="kind">
-        <option value="consumable">可重複購買(顯示可買幾份)</option>
-        <option value="goal">一次性目標(顯示解鎖進度)</option>
+        <option value="consumable" data-i18n="dlg.kind.consumable"></option>
+        <option value="goal" data-i18n="dlg.kind.goal"></option>
       </select></label>
-    <label class="field" id="savedField"><span>已存金額(選填)</span><input name="saved" type="number" min="0" step="1"></label>
+    <label class="field" id="savedField"><span data-i18n="dlg.saved">已存金額</span><input name="saved" type="number" min="0" step="1"></label>
     <div class="row end">
-      <button type="button" class="btn danger" id="btnDeleteItem">刪除</button>
+      <button type="button" class="btn danger" id="btnDeleteItem" data-i18n="dlg.delete">刪除</button>
       <span class="grow"></span>
-      <button type="button" class="btn" id="btnCancelItem">取消</button>
-      <button type="submit" class="btn primary">儲存</button>
+      <button type="button" class="btn" id="btnCancelItem" data-i18n="dlg.cancel">取消</button>
+      <button type="submit" class="btn primary" data-i18n="dlg.save">儲存</button>
     </div>
   </form>
 </dialog>
@@ -196,33 +188,34 @@
 <!-- 補登班次 -->
 <dialog id="shiftDialog">
   <form method="dialog" id="shiftForm">
-    <h3>補登班次</h3>
-    <label class="field"><span>上班時間</span><input type="datetime-local" name="start" required></label>
-    <label class="field"><span>下班時間(可跨午夜)</span><input type="datetime-local" name="end" required></label>
-    <label class="field"><span>休息(分鐘)</span><input type="number" name="breakMin" min="0" step="5" value="60"></label>
+    <h3 data-i18n="dlg.shift.title">補登班次</h3>
+    <label class="field"><span data-i18n="dlg.shift.start">上班時間</span><input type="datetime-local" name="start" required></label>
+    <label class="field"><span data-i18n="dlg.shift.end">下班時間</span><input type="datetime-local" name="end" required></label>
+    <label class="field"><span data-i18n="dlg.shift.break">休息(分鐘)</span><input type="number" name="breakMin" min="0" step="5" value="60"></label>
     <p class="note" id="shiftPreview"></p>
     <div class="row end">
       <span class="grow"></span>
-      <button type="button" class="btn" id="btnCancelShift">取消</button>
-      <button type="submit" class="btn primary">加入紀錄</button>
+      <button type="button" class="btn" id="btnCancelShift" data-i18n="dlg.cancel">取消</button>
+      <button type="submit" class="btn primary" data-i18n="dlg.shift.add">加入紀錄</button>
     </div>
   </form>
 </dialog>
 
 <!-- 成果卡 -->
 <dialog id="shareDialog">
-  <h3>薪水成果卡</h3>
+  <h3 data-i18n="share.dialog">薪水成果卡</h3>
   <canvas id="shareCanvas" width="1080" height="1080"></canvas>
-  <label class="check"><input type="checkbox" id="shareShowAmount" checked> 顯示累積金額</label>
-  <p class="note">成果卡不含時薪、公司名稱等個人資料。</p>
+  <label class="check"><input type="checkbox" id="shareShowAmount" checked> <span data-i18n="share.show">顯示累積金額</span></label>
+  <p class="note" data-i18n="share.note"></p>
   <div class="row end">
-    <button class="btn" id="btnShareClose">關閉</button>
-    <button class="btn" id="btnShareCopy">複製圖片</button>
-    <button class="btn primary" id="btnShareSave">下載 PNG</button>
+    <button class="btn" id="btnShareClose" data-i18n="share.close">關閉</button>
+    <button class="btn" id="btnShareCopy" data-i18n="share.copy">複製圖片</button>
+    <button class="btn primary" id="btnShareSave" data-i18n="share.save">下載 PNG</button>
   </div>
 </dialog>
 
 <script src="assets/workhorse/asset-manifest.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/defaults.js"></script>
 <script src="js/assets.js"></script>
 <script src="js/core.js"></script>

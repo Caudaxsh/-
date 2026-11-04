@@ -3,7 +3,9 @@
   const D = window.Defaults;
   const C = window.Core;
   const A = window.Assets;
-  const K = { settings: 'wh.settings.v1', items: 'wh.items.v1', shifts: 'wh.shifts.v1', active: 'wh.active.v1' };
+  const I = window.I18n;
+  const t = I.t;
+  const K = { settings: 'wh.settings.v1', items: 'wh.items.v2', itemsOld: 'wh.items.v1', shifts: 'wh.shifts.v1', overrides: 'wh.overrides.v1' };
 
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const $ = (s, r = document) => r.querySelector(s);
@@ -18,46 +20,85 @@
     try { const raw = localStorage.getItem(key); if (raw) return JSON.parse(raw); } catch (e) { /* 無痕模式 */ }
     return clone(fallback);
   }
+  const hasKey = (key) => { try { return localStorage.getItem(key) != null; } catch (e) { return false; } };
   function put(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ } }
-  function drop(key) { try { localStorage.removeItem(key); } catch (e) { /* ignore */ } }
-  function saveAll() { put(K.settings, settings); put(K.items, items); put(K.shifts, shifts); active ? put(K.active, active) : drop(K.active); }
+  function saveAll() { put(K.settings, settings); put(K.items, items); put(K.shifts, shifts); put(K.overrides, overrides); }
   function merge(base, over) {
     const out = clone(base);
     for (const k in over) out[k] = over[k] && typeof over[k] === 'object' && !Array.isArray(over[k]) ? Object.assign(out[k] || {}, over[k]) : over[k];
     return out;
   }
+  /** 舊版項目(中文類別、固定名稱)→ 新版(類別 id、可翻譯的預設名稱) */
+  function migrateItems(list) {
+    return list.map((it) => {
+      const o = { ...it };
+      if (D.LEGACY_CATEGORY[o.category]) o.category = D.LEGACY_CATEGORY[o.category];
+      const def = D.ITEMS.find((d) => d.id === o.id);
+      if (def && !o.nameKey && o.name && Object.values(I.D).some((dict) => dict[def.nameKey] === o.name)) { o.nameKey = def.nameKey; o.name = ''; }
+      return o;
+    });
+  }
 
+  const hadSettings = hasKey(K.settings);
   let settings = merge(D.SETTINGS, load(K.settings, {}));
-  let items = load(K.items, D.ITEMS);
+  delete settings.mini; delete settings.continueOT;
+  if (!Array.isArray(settings.workDays)) settings.workDays = clone(D.SETTINGS.workDays);
+  if (!settings.lastFinal) settings.lastFinal = C.dayStart(Date.now()) - C.DAY; // 從今天開始記
+  let items = hasKey(K.items) ? load(K.items, D.ITEMS) : hasKey(K.itemsOld) ? migrateItems(load(K.itemsOld, [])) : clone(D.ITEMS);
   let shifts = load(K.shifts, []);
-  let active = load(K.active, null);
-  if (active && (typeof active.start !== 'number' || active.end != null)) active = null;
-  if (new URLSearchParams(location.search).get('mini') === '1') settings.mini = true;
+  let overrides = load(K.overrides, {});
+  for (const k of Object.keys(overrides)) { // 清掉太舊的設定
+    if (Date.now() - new Date(k + 'T00:00:00').getTime() > 150 * C.DAY) delete overrides[k];
+  }
 
-  /* ---------- 格式化 ---------- */
+  I.set(settings.lang || I.detect());
+
+  /* ---------- 格式化(全部依目前語言) ---------- */
   const cur = () => D.CURRENCIES[settings.currency] || D.CURRENCIES.TWD;
-  const num = (v, opt) => (Number(v) || 0).toLocaleString(cur().locale, opt);
+  const num = (v, opt) => (Number(v) || 0).toLocaleString(I.locale, opt);
   const money = (v, sym = true) => (sym ? cur().symbol + ' ' : '') + num(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const money0 = (v) => cur().symbol + ' ' + num(v, { maximumFractionDigits: 2 });
   const hm = (ms) => { const m = Math.max(0, Math.floor(ms / 60000)); return Math.floor(m / 60) + ':' + pad(m % 60); };
-  const hmText = (ms) => { const m = Math.max(0, Math.floor(ms / 60000)); return Math.floor(m / 60) + ' 小時 ' + (m % 60) + ' 分'; };
+  const hmText = (ms) => { const m = Math.max(0, Math.floor(ms / 60000)); return t('time.hm', { h: Math.floor(m / 60), m: m % 60 }); };
+  function dur(min) {
+    if (!isFinite(min)) return '—';
+    const m = Math.ceil(min - 1e-9);
+    if (m < 60) return t('time.min', { n: m });
+    const h = Math.floor(m / 60), r = m % 60;
+    return r ? t('time.hm', { h, m: r }) : t('time.h', { h });
+  }
   const clock = (ms) => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
-  const WD = ['日', '一', '二', '三', '四', '五', '六'];
-  const dayLabel = (ms) => { const d = new Date(ms); return `${d.getMonth() + 1}/${d.getDate()} 週${WD[d.getDay()]}`; };
+  const wdName = (d) => t('wd.short', { d: t('wd.' + d) });
+  const dayLabel = (ms) => { const d = new Date(ms); return `${t('date.md', { m: d.getMonth() + 1, d: d.getDate() })} ${wdName(d.getDay())}`; };
+  const itemName = (it) => (it.nameKey ? t(it.nameKey) : it.name);
+  const catName = (c) => (D.CATEGORIES.includes(c) ? t('cat.' + c) : c);
+  const iconOf = (it) => it.icon || D.ICON_BY_CATEGORY[it.category] || 'coffee_to_go';
 
   /* ---------- 綁定 ---------- */
   function bind(name, text) {
     for (const el of document.querySelectorAll(`[data-bind="${name}"]`)) if (el.textContent !== text) el.textContent = text;
   }
-  const PHASE = { idle: '尚未上班', working: '上班中', break: '休息中', done: '已下班' };
 
   function mascotFor(T) {
-    if (T.phase === 'idle' || T.phase === 'done') return T.goalRatio >= 1 && T.phase === 'done' ? 'cow_saving_money' : 'cow_sleeping';
-    if (T.goalRatio >= 1) return 'cow_saving_money';
-    return T.phase === 'break' ? 'cow_holding_coffee' : 'cow_working_laptop';
+    if (T.goalRatio >= 1 && T.phase !== 'before') return 'cow_saving_money';
+    if (T.phase === 'working') return 'cow_working_laptop';
+    if (T.phase === 'break') return 'cow_holding_coffee';
+    return 'cow_sleeping';
   }
 
-  function ctxNow() { return C.today(settings, shifts, active, Date.now()); }
+  const nowT = () => C.today(settings, overrides, Date.now());
+
+  /** 把已經過完的上班日寫進流水帳(用當時的設定凍結) */
+  function flushRecords() {
+    const cu = C.catchUp(settings, overrides, shifts, settings.lastFinal, Date.now());
+    if (cu.added.length || cu.lastFinal !== settings.lastFinal) {
+      shifts.push(...cu.added);
+      settings.lastFinal = cu.lastFinal;
+      saveAll();
+      if ($('#view-history').classList.contains('active')) renderHistory();
+      if ($('#view-stats').classList.contains('active')) renderStats();
+    }
+  }
 
   function nearestReward(T) {
     let best = null;
@@ -73,45 +114,53 @@
   let lastNext = '';
   let lastNotifyBucket = null;
   function tick() {
-    const T = ctxNow();
+    flushRecords();
+    const T = nowT();
     const a = T.a;
+    const sh = T.shift;
     bind('cur', cur().symbol);
     bind('earned', money(T.earned, false));
     const chip = $('#phaseChip');
-    chip.textContent = PHASE[T.phase];
+    if (chip.textContent !== t('phase.' + T.phase)) chip.textContent = t('phase.' + T.phase);
     chip.className = 'chip ' + T.phase;
-    bind('worked', C.fmtHMS(T.workedMs));
-    bind('rateLine', a && a.ratePerHour
-      ? `時薪 ${money(settings.hourly)}${a.mult > 1 ? `・加班 ×${a.mult}` : ''}・每分鐘 ${money(a.ratePerHour / 60)}`
-      : `時薪 ${money(settings.hourly)}${a ? '・暫停計薪' : ''}`);
+
+    const hourly = money(settings.hourly);
+    bind('rateLine', T.phase === 'working'
+      ? t('rate.working', { rate: hourly, perMin: money(T.ratePerHour / 60) }) + (T.mult > 1 ? t('rate.ot', { m: T.mult }) : '')
+      : T.phase === 'break' ? t('rate.paused', { rate: hourly }) : t('rate.idle', { rate: hourly }));
     bind('goalAmt', money0(T.goal));
     bind('goalPct', (T.goalRatio * 100).toFixed(0) + '%');
     const bar = $('#goalBar');
     bar.style.width = (T.goalRatio * 100).toFixed(1) + '%';
     bar.classList.toggle('full', T.goalRatio >= 1);
 
-    bind('breakInfo', `休息 ${a ? Math.floor(a.breakMs / 60000) : 0} 分鐘`);
-    if (T.sched != null) {
-      const diff = T.sched - T.now;
-      bind('endLabel', diff >= 0 ? '距離預定下班' : '已超過預定下班');
-      bind('toEnd', (diff >= 0 ? '' : '+') + C.fmtHMS(Math.abs(diff)));
-      bind('endInfo', '預定 ' + clock(T.sched));
+    bind('worked', C.fmtHMS(T.workedMs));
+    bind('breakInfo', t('worked.sub', { n: a ? Math.floor(a.breakMs / 60000) : 0 }));
+    if (T.phase === 'before') {
+      bind('endLabel', t('until.start')); bind('toEnd', C.fmtHMS(sh.start - T.now)); bind('endInfo', t('until.start.sub', { t: clock(sh.start) }));
+    } else if (T.phase === 'working' || T.phase === 'break') {
+      bind('endLabel', t('until.end')); bind('toEnd', C.fmtHMS(sh.end - T.now)); bind('endInfo', t('until.end.sub', { t: clock(sh.end) }));
+    } else if (T.phase === 'done') {
+      bind('endLabel', t('until.end')); bind('toEnd', '0:00:00'); bind('endInfo', t('done.sub'));
     } else {
-      bind('endLabel', '預定下班');
-      bind('toEnd', T.phase === 'done' ? '已下班' : '—');
-      bind('endInfo', `${settings.start} – ${settings.end}`);
+      bind('endLabel', t('off.title'));
+      bind('toEnd', T.next ? `${wdName(new Date(T.next.start).getDay())} ${clock(T.next.start)}` : '—');
+      bind('endInfo', t('off.sub'));
     }
 
-    // 控制鈕
-    const manualOpen = !!(active && active.breaks.some((b) => b.e == null));
-    $('#btnStart').disabled = !!active;
-    $('#btnBreak').disabled = !active || (T.phase === 'break' && !manualOpen);
-    $('#btnEnd').disabled = !active;
-    const bl = !active ? '休息' : manualOpen ? '繼續' : T.phase === 'break' ? '午休中' : '休息';
-    if ($('#breakLabel').textContent !== bl) $('#breakLabel').textContent = bl;
-    const bi = $('#btnBreak img');
-    const want = A.url(manualOpen ? 'ui_icons.play' : 'ui_icons.pause');
-    if (bi.getAttribute('src') !== want) bi.setAttribute('src', want);
+    // 快捷:放假 / 加班
+    const t0 = C.dayStart(T.now);
+    const ov = overrides[C.ymd(t0)] || {};
+    const baseWork = settings.workDays.includes(new Date(t0).getDay());
+    const offKey = ov.off ? 'q.offUndo' : ov.work ? 'q.workUndo' : baseWork ? 'q.off' : 'q.work';
+    if ($('#offLabel').textContent !== t(offKey)) $('#offLabel').textContent = t(offKey);
+    $('#btnOff').classList.toggle('on', !!(ov.off || ov.work));
+    const ext = sh ? sh.extendMin : 0;
+    const otLabel = ext > 0 ? t('q.otMore', { n: ext }) : t('q.ot');
+    if ($('#otLabel').textContent !== otLabel) $('#otLabel').textContent = otLabel;
+    const canOt = !!sh && (T.phase === 'working' || T.phase === 'break' || (T.phase === 'done' && T.now < sh.end + C.GRACE));
+    $('#btnOt').disabled = !canOt;
+    $('#btnOtReset').hidden = !(ext > 0 && canOt);
 
     // 吉祥物(只有一隻)
     const m = A.url('mascot.' + mascotFor(T));
@@ -122,69 +171,79 @@
     const g = nearestReward(T);
     let html;
     if (g) {
-      const verb = g.p.kind === 'goal' ? '就能解鎖' : '就能買一份';
-      html = `${active ? '' : '開始上班後,'}再工作約 <b>${C.fmtDuration(g.p.minutes)}</b>,${verb}<b>${esc(g.it.name)}</b>`;
-      html = `<span class="next-ico">${A.img('reward_icons.' + iconOf(g.it))}</span><span class="next-text">${html}</span>`;
+      const pre = g.p.later || T.phase === 'off' ? t('next.pre.later') : T.phase === 'before' ? t('next.pre.before') : '';
+      const text = t(g.p.kind === 'goal' ? 'next.goal' : 'next.consumable', { pre, time: dur(g.p.minutes), name: esc(itemName(g.it)) });
+      html = `<span class="next-ico">${A.img('reward_icons.' + iconOf(g.it))}</span><span class="next-text">${text}</span>`;
     } else {
-      html = `<span class="next-ico">${A.img('brand.coffee_cup_illustration')}</span><span class="next-text">${items.length ? '目前所有目標都已解鎖,太強了!' : '到「換算」新增一個消費目標吧'}</span>`;
+      html = `<span class="next-ico">${A.img('brand.coffee_cup_illustration')}</span><span class="next-text">${t(items.length ? 'next.allDone' : 'next.none')}</span>`;
     }
     if (html !== lastNext) { $('#nextReward').innerHTML = html; lastNext = html; }
 
     if ($('#view-rewards').classList.contains('active')) updateItems(T);
     maybeNotify(T);
   }
-  const iconOf = (it) => it.icon || D.ICON_BY_CATEGORY[it.category] || 'coffee_to_go';
 
   /* ---------- 定時提示 ---------- */
   function maybeNotify(T) {
     const every = Number(settings.notifyEvery);
-    if (!every || !T.a || T.phase !== 'working') return;
+    if (!every || T.phase !== 'working') return;
     const bucket = Math.floor(T.a.workedMin / every);
     if (lastNotifyBucket === null) { lastNotifyBucket = bucket; return; }
     if (bucket > lastNotifyBucket) {
       lastNotifyBucket = bucket;
-      const msg = `今天已經賺了 ${money(T.earned)}`;
+      const msg = t('toast.earned', { amt: money(T.earned) });
       toast(msg);
       if (settings.useSystemNotification && 'Notification' in window && Notification.permission === 'granted') {
-        try { new Notification('牛馬薪水計', { body: msg, icon: A.url('brand.app_icon_512'), silent: true }); } catch (e) { /* ignore */ }
+        try { new Notification(t('toast.notifyTitle'), { body: msg, icon: A.url('brand.app_icon_512'), silent: true }); } catch (e) { /* ignore */ }
       }
     }
   }
   let toastTimer;
   function toast(msg) {
-    const t = $('#toast');
-    t.textContent = msg; t.classList.add('show');
+    const el = $('#toast');
+    el.textContent = msg; el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
   }
 
-  /* ---------- 上班 / 休息 / 下班 ---------- */
-  $('#btnStart').onclick = () => {
-    if (active) return;
-    active = C.startShift(Date.now(), newId());
-    lastNotifyBucket = null;
-    saveAll(); tick(); toast('開始計薪,今天也辛苦了');
-  };
-  $('#btnBreak').onclick = () => {
-    if (!active) return;
-    C.toggleBreak(active, Date.now());
-    saveAll(); tick();
-  };
-  $('#btnEnd').onclick = () => {
-    if (!active) return;
-    const now = Date.now();
-    const f = C.finishShift(active, settings, now);
-    shifts.push(f); active = null;
-    saveAll(); renderHistory(); tick();
-    toast(`下班!這一班賺了 ${money(f.earned)}(工時 ${hmText(f.workedMs)})`);
-  };
-  // 忘記下班:隔很久才開啟頁面
-  if (active && Date.now() - active.start > 16 * C.HOUR) {
-    if (confirm('上次上班的班次已持續超過 16 小時,還要繼續計時嗎?\n按「取消」會以預定下班時間結束該班次。')) { /* 繼續 */ } else {
-      const endAt = Math.max(active.start, Math.min(C.scheduledEnd(active.start, settings), Date.now()));
-      shifts.push(C.finishShift(active, settings, endAt)); active = null; saveAll();
-    }
+  /* ---------- 今天放假 / 加班(取代打卡按鈕) ---------- */
+  function resetTodayRecord(dayMs) {
+    // 當天設定被更動 → 移除該天自動紀錄並讓它重新結算
+    shifts = shifts.filter((r) => r.id !== 'a' + C.ymd(dayMs));
+    settings.lastFinal = Math.min(settings.lastFinal, C.dayStart(Date.now()) - C.DAY);
   }
+  $('#btnOff').onclick = () => {
+    const t0 = C.dayStart(Date.now());
+    const key = C.ymd(t0);
+    const ov = overrides[key] || {};
+    const baseWork = settings.workDays.includes(new Date(t0).getDay());
+    let msg;
+    if (ov.off || ov.work) { msg = ov.off ? 'toast.offOff' : 'toast.workOff'; delete ov.off; delete ov.work; }
+    else if (baseWork) { ov.off = true; msg = 'toast.offOn'; }
+    else { ov.work = true; msg = 'toast.workOn'; }
+    if (Object.keys(ov).length) overrides[key] = ov; else delete overrides[key];
+    resetTodayRecord(t0);
+    saveAll(); tick(); toast(t(msg));
+  };
+  $('#btnOt').onclick = () => {
+    const T = nowT();
+    if (!T.shift) return;
+    const key = C.ymd(T.shift.day);
+    const ov = overrides[key] || {};
+    let ext = (ov.extendMin || 0) + 30;
+    while (T.shift.baseEnd + ext * C.MIN <= T.now) ext += 30; // 已經過了下班時間才按:把中間這段也算進去
+    ov.extendMin = ext; overrides[key] = ov;
+    resetTodayRecord(T.shift.day);
+    saveAll(); tick(); toast(t('toast.otAdd'));
+  };
+  $('#btnOtReset').onclick = () => {
+    const T = nowT();
+    if (!T.shift) return;
+    const key = C.ymd(T.shift.day);
+    if (overrides[key]) { delete overrides[key].extendMin; if (!Object.keys(overrides[key]).length) delete overrides[key]; }
+    resetTodayRecord(T.shift.day);
+    saveAll(); tick(); toast(t('toast.otReset'));
+  };
 
   /* ---------- 分頁 ---------- */
   function showView(name) {
@@ -204,19 +263,19 @@
 
   /* ---------- 換算項目 ---------- */
   function itemSummary(p) {
-    if (p.invalid) return { main: '價格無效', sub: '', ratio: 0 };
+    if (p.invalid) return { main: t('item.invalid'), sub: '', ratio: 0 };
     const left = () => {
-      if (!isFinite(p.minutes)) return '無法估算';
-      let s = `還需工作 <b>${C.fmtDuration(p.minutes)}</b>`;
-      if (p.eta != null) s += p.beyondEnd ? (p.days > 1 ? `(約 ${p.days.toFixed(1)} 個工作天)` : '(需加班)') : `(預計 ${clock(p.eta)})`;
-      else if (p.days > 1) s += `(約 ${p.days.toFixed(1)} 個工作天)`;
+      if (!isFinite(p.minutes)) return t('item.noEstimate');
+      if (p.later) return t('item.later', { time: dur(p.minutes) });
+      let s = t('item.left', { time: dur(p.minutes) });
+      if (p.eta != null) s += ' ' + (p.beyondEnd ? (p.days > 1 ? t('item.days', { n: p.days.toFixed(1) }) : t('item.ot')) : t('item.eta', { clock: clock(p.eta) }));
       return s;
     };
     if (p.kind === 'goal') {
-      if (p.unlocked) return { main: '<span class="badge">已解鎖</span>', sub: `目標 ${money0(p.price)}${p.saved ? `(含已存 ${money0(p.saved)})` : ''}`, ratio: 1 };
-      return { main: `<span class="item-count">${(p.ratio * 100).toFixed(1)}<small>%</small></span>`, sub: `還差 <b>${money(p.gap)}</b>｜${left()}`, ratio: p.ratio };
+      if (p.unlocked) return { main: `<span class="badge">${t('item.unlocked')}</span>`, sub: t('item.goalTarget', { price: money0(p.price) }) + (p.saved ? ' ' + t('item.goalSaved', { saved: money0(p.saved) }) : ''), ratio: 1 };
+      return { main: `<span class="item-count">${(p.ratio * 100).toFixed(1)}<small>%</small></span>`, sub: `${t('item.gap', { amt: `<b>${money(p.gap)}</b>` })}｜${left()}`, ratio: p.ratio };
     }
-    return { main: `<span class="item-count">${p.count}<small> 份</small></span>`, sub: `下一份還差 <b>${money(p.gap)}</b>｜${left()}`, ratio: p.ratio };
+    return { main: `<span class="item-count">${p.count}<small>${t('item.unit')}</small></span>`, sub: `${t('item.gapNext', { amt: `<b>${money(p.gap)}</b>` })}｜${left()}`, ratio: p.ratio };
   }
   function renderItems() {
     $('#itemList').innerHTML = items.map((it) => `
@@ -224,23 +283,23 @@
         <div class="item-ico">${A.img('reward_icons.' + iconOf(it))}</div>
         <div>
           <div class="item-head">
-            <div class="item-name">${esc(it.name)}<span class="item-cat">${esc(it.category)}${it.kind === 'goal' ? '・目標' : ''}</span></div>
+            <div class="item-name">${esc(itemName(it))}<span class="item-cat">${esc(catName(it.category))}${it.kind === 'goal' ? t('item.goalTag') : ''}</span></div>
             <div class="item-price amount">${money0(it.price)}</div>
           </div>
           <div data-role="main"></div>
           <div class="bar"><i data-role="bar"></i></div>
           <div class="item-sub" data-role="sub"></div>
-          <div class="item-actions"><button data-act="edit">編輯</button><button data-act="toggle">${it.enabled === false ? '啟用' : '停用'}</button></div>
+          <div class="item-actions"><button data-act="edit">${t('item.edit')}</button><button data-act="toggle">${it.enabled === false ? t('item.on') : t('item.off')}</button></div>
         </div>
-      </div>`).join('') || `<div class="card empty">${A.img('brand.coffee_cup_illustration')}還沒有項目,按「＋ 新增」建立。</div>`;
-    updateItems(ctxNow());
+      </div>`).join('') || `<div class="card empty">${A.img('brand.coffee_cup_illustration')}${t('item.empty')}</div>`;
+    updateItems(nowT());
   }
   function updateItems(T) {
     for (const it of items) {
       const el = $(`.item[data-id="${it.id}"]`);
       if (!el) continue;
       const main = $('[data-role=main]', el), sub = $('[data-role=sub]', el), bar = $('[data-role=bar]', el);
-      if (it.enabled === false) { main.innerHTML = ''; sub.textContent = '已停用'; bar.style.width = '0'; continue; }
+      if (it.enabled === false) { main.innerHTML = ''; sub.textContent = t('item.disabled'); bar.style.width = '0'; continue; }
       const s = itemSummary(C.itemProgress(T, it));
       if (main.innerHTML !== s.main) main.innerHTML = s.main;
       if (sub.innerHTML !== s.sub) sub.innerHTML = s.sub;
@@ -250,20 +309,20 @@
 
   const dlg = $('#itemDialog'), form = $('#itemForm');
   let editingId = null;
-  function previewIcon() { $('#itemIconPreview').setAttribute('src', A.url('reward_icons.' + form.icon.value)); }
-  function syncSaved() { $('#savedField').style.display = form.kind.value === 'goal' ? '' : 'none'; }
+  const previewIcon = () => $('#itemIconPreview').setAttribute('src', A.url('reward_icons.' + form.icon.value));
+  const syncSaved = () => { $('#savedField').style.display = form.kind.value === 'goal' ? '' : 'none'; };
   function openItem(id) {
     editingId = id;
-    const it = items.find((i) => i.id === id) || { category: '娛樂', name: '', price: '', kind: 'consumable', saved: '', icon: D.ICON_BY_CATEGORY['娛樂'] };
-    form.category.value = it.category; form.name.value = it.name; form.price.value = it.price;
+    const it = items.find((i) => i.id === id) || { category: 'fun', name: '', price: '', kind: 'consumable', saved: '', icon: D.ICON_BY_CATEGORY.fun };
+    form.category.value = it.category; form.name.value = itemName(it); form.price.value = it.price;
     form.kind.value = it.kind; form.saved.value = it.saved || ''; form.icon.value = iconOf(it);
-    $('#itemDialogTitle').textContent = id ? '編輯項目' : '新增項目';
+    $('#itemDialogTitle').textContent = t(id ? 'dlg.item.edit' : 'dlg.item.add');
     $('#btnDeleteItem').style.display = id ? '' : 'none';
     syncSaved(); previewIcon(); dlg.showModal();
   }
   form.category.onchange = () => {
     form.icon.value = D.ICON_BY_CATEGORY[form.category.value] || form.icon.value;
-    if (form.category.value === '個人目標') form.kind.value = 'goal';
+    if (form.category.value === 'goal') form.kind.value = 'goal';
     syncSaved(); previewIcon();
   };
   form.icon.onchange = previewIcon;
@@ -271,16 +330,20 @@
   $('#btnAddItem').onclick = () => openItem(null);
   $('#btnCancelItem').onclick = () => dlg.close();
   $('#btnDeleteItem').onclick = () => {
-    if (confirm('確定刪除這個項目?')) { items = items.filter((i) => i.id !== editingId); saveAll(); renderItems(); tick(); dlg.close(); }
+    if (confirm(t('confirm.delItem'))) { items = items.filter((i) => i.id !== editingId); saveAll(); renderItems(); tick(); dlg.close(); }
   };
   form.onsubmit = () => {
+    const it = items.find((i) => i.id === editingId);
+    const typed = form.name.value.trim();
     const data = {
-      category: form.category.value, name: form.name.value.trim() || form.category.value, icon: form.icon.value,
-      price: Math.max(0.01, Number(form.price.value) || 0.01), kind: form.kind.value,
+      category: form.category.value, icon: form.icon.value, kind: form.kind.value,
+      price: Math.max(0.01, Number(form.price.value) || 0.01),
       saved: form.kind.value === 'goal' ? Math.max(0, Number(form.saved.value) || 0) : 0,
     };
-    const it = items.find((i) => i.id === editingId);
-    if (it) Object.assign(it, data); else items.push({ id: newId(), enabled: true, ...data });
+    if (it) {
+      Object.assign(it, data);
+      if (!(it.nameKey && typed === t(it.nameKey))) { delete it.nameKey; it.name = typed || catName(data.category); } // 使用者改過名字就不再自動翻譯
+    } else items.push({ id: newId(), enabled: true, name: typed || catName(data.category), ...data });
     saveAll(); renderItems(); tick();
   };
   $('#itemList').addEventListener('click', (e) => {
@@ -292,17 +355,17 @@
   });
   $('#citySelect').onchange = (e) => {
     settings.city = e.target.value;
-    const lunch = items.find((i) => i.category === '便當');
+    const lunch = items.find((i) => i.category === 'bento');
     if (lunch && D.CITY_LUNCH[settings.city]) lunch.price = D.CITY_LUNCH[settings.city];
     saveAll(); renderItems(); tick();
-    toast(`便當參考價已套用 ${settings.city}:${money0(lunch ? lunch.price : 0)}(可自行編輯)`);
+    toast(t('toast.city', { city: t('city.' + settings.city), price: money0(lunch ? lunch.price : 0) }));
   };
 
-  /* ---------- 班次紀錄 ---------- */
+  /* ---------- 流水帳 ---------- */
   function renderHistory() {
     const list = shifts.slice().sort((a, b) => b.start - a.start);
     if (!list.length) {
-      $('#historyList').innerHTML = `<div class="card empty">${A.img('brand.coffee_cup_illustration')}還沒有班次紀錄<br>按「下班」或「＋ 補登」就會出現在這裡</div>`;
+      $('#historyList').innerHTML = `<div class="card empty">${A.img('brand.coffee_cup_illustration')}${t('hist.empty')}</div>`;
       return;
     }
     let html = '', lastDay = null;
@@ -318,11 +381,11 @@
       const ot = Math.max(0, s.workedMs - reg);
       html += `<div class="card shift" data-id="${s.id}">
         <div class="shift-main">
-          <div class="shift-time">${clock(s.start)} – ${clock(s.end)}${crossed ? '<sup>+1</sup>' : ''}${ot > 0 ? `<span class="tag">加班 ${hm(ot)}</span>` : ''}</div>
-          <div class="shift-meta">工時 ${hm(s.workedMs)}・休息 ${Math.round((s.end - s.start - s.workedMs) / 60000)} 分${s.manual ? '・補登' : ''}</div>
+          <div class="shift-time">${clock(s.start)} – ${clock(s.end)}${crossed ? '<sup>+1</sup>' : ''}${ot > 0 ? `<span class="tag">${t('hist.ot', { t: hm(ot) })}</span>` : ''}</div>
+          <div class="shift-meta">${t('hist.meta', { t: hm(s.workedMs), n: Math.round((s.end - s.start - s.workedMs) / 60000) })}・${t(s.manual ? 'hist.manual' : 'hist.auto')}</div>
         </div>
         <div class="shift-pay amount">${money(s.earned)}</div>
-        <button class="shift-del" aria-label="刪除這筆紀錄" title="刪除">×</button>
+        <button class="shift-del" aria-label="${t('hist.del')}" title="${t('hist.del')}">×</button>
       </div>`;
     }
     $('#historyList').innerHTML = html;
@@ -330,7 +393,7 @@
   $('#historyList').addEventListener('click', (e) => {
     if (!e.target.classList.contains('shift-del')) return;
     const id = e.target.closest('.shift').dataset.id;
-    if (confirm('確定刪除這筆班次紀錄?')) { shifts = shifts.filter((s) => s.id !== id); saveAll(); renderHistory(); tick(); }
+    if (confirm(t('confirm.delShift'))) { shifts = shifts.filter((s) => s.id !== id); saveAll(); renderHistory(); tick(); }
   });
 
   const shiftDlg = $('#shiftDialog'), shiftForm = $('#shiftForm');
@@ -339,10 +402,10 @@
     const s = new Date(shiftForm.start.value).getTime(), e = new Date(shiftForm.end.value).getTime();
     const out = $('#shiftPreview');
     if (!isFinite(s) || !isFinite(e)) { out.textContent = ''; return null; }
-    if (e <= s) { out.textContent = '下班時間必須晚於上班時間'; return null; }
-    if (e - s > 24 * C.HOUR) { out.textContent = '單一班次不能超過 24 小時'; return null; }
+    if (e <= s) { out.textContent = t('dlg.shift.badEnd'); return null; }
+    if (e - s > 24 * C.HOUR) { out.textContent = t('dlg.shift.tooLong'); return null; }
     const m = C.manualShift(s, e, Number(shiftForm.breakMin.value) || 0, settings, 'preview');
-    out.textContent = `預計工時 ${hmText(m.workedMs)}・薪資 ${money(m.earned)}`;
+    out.textContent = t('dlg.shift.preview', { t: hmText(m.workedMs), amt: money(m.earned) });
     return m;
   }
   $('#btnAddShift').onclick = () => {
@@ -360,17 +423,17 @@
     if (!m) { e.preventDefault(); return; }
     m.id = newId();
     shifts.push(m); saveAll(); renderHistory(); renderStats(); tick();
-    toast('已加入班次紀錄');
+    toast(t('toast.shiftAdded'));
   };
   $('#btnExportCsv').onclick = () => {
-    if (!shifts.length) { toast('目前沒有可匯出的紀錄'); return; }
-    const rows = [['日期', '上班', '下班', '工時(小時)', '休息(分鐘)', '薪資', '時薪']];
+    if (!shifts.length) { toast(t('hist.noExport')); return; }
+    const rows = [t('csv.head').split(',')];
     for (const s of shifts.slice().sort((a, b) => a.start - b.start)) {
       const d = new Date(s.start);
       rows.push([`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, clock(s.start), clock(s.end),
         (s.workedMs / C.HOUR).toFixed(2), Math.round((s.end - s.start - s.workedMs) / 60000), s.earned.toFixed(2), s.cfg ? s.cfg.hourly : '']);
     }
-    download('workhorse-shifts.csv', '﻿' + rows.map((r) => r.join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+    download('workhorse-log.csv', '﻿' + rows.map((r) => r.join(',')).join('\r\n'), 'text/csv;charset=utf-8');
   };
   function download(name, content, type) {
     const a = document.createElement('a');
@@ -379,14 +442,24 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
-  /* ---------- 統計 ---------- */
+  /* ---------- 戰績(月統計) ---------- */
   const now0 = new Date();
   let statYear = now0.getFullYear(), statMonth = now0.getMonth();
+  function statRecords() {
+    // 把「今天進行中、還沒定稿」的班次也算進來,數字才會即時跳動
+    const T = nowT();
+    const live = [];
+    if (T.shift && T.phase !== 'before' && T.shift.day > settings.lastFinal && !shifts.some((r) => r.id === 'a' + C.ymd(T.shift.day))) {
+      live.push({ id: 'live', start: T.shift.start, end: T.shift.end, earned: T.earned, workedMs: T.workedMs, cfg: { regularHours: settings.regularHours } });
+    }
+    return shifts.concat(live);
+  }
   function renderStats() {
-    $('#monthTitle').textContent = `${statYear} 年 ${statMonth + 1} 月`;
-    const st = C.monthStats(shifts, statYear, statMonth);
+    const mm = I.lang === 'en' ? t('month.' + statMonth) : statMonth + 1;
+    $('#monthTitle').textContent = t('stats.monthTitle', { y: statYear, m: mm });
+    const st = C.monthStats(statRecords(), statYear, statMonth);
     if (!st.count) {
-      $('#statsBody').innerHTML = `<div class="card empty">${A.img('mascot.cow_sleeping', 'wide')}這個月還沒有班次紀錄</div>`;
+      $('#statsBody').innerHTML = `<div class="card empty">${A.img('mascot.cow_sleeping', 'wide')}${t('stats.empty')}</div>`;
       return;
     }
     const max = Math.max(...st.days.map((d) => d.earned), 1);
@@ -394,20 +467,20 @@
     const dim = st.days.length;
     $('#statsBody').innerHTML = `
       <div class="card stat-hero">
-        <small>本月累積薪資</small>
+        <small>${t('stats.earned')}</small>
         <div class="money amount"><span class="cur">${cur().symbol}</span> ${money(st.earned, false)}</div>
         <div class="stat-grid">
-          <div><small>總工時</small><b>${hmText(st.workedMs)}</b></div>
-          <div><small>出勤天數</small><b>${st.workDays} 天(${st.count} 班)</b></div>
-          <div><small>平均每個工作日</small><b class="amount">${money(st.avgPerDay)}</b></div>
-          <div><small>實際平均時薪</small><b class="amount">${money(st.effHourly)}</b></div>
-          <div><small>加班工時</small><b>${hmText(st.otMs)}</b></div>
-          <div><small>最高單日</small><b class="amount">${st.best ? `${statMonth + 1}/${st.best.day} ${money0(st.best.earned)}` : '—'}</b></div>
+          <div><small>${t('stats.hours')}</small><b>${hmText(st.workedMs)}</b></div>
+          <div><small>${t('stats.days')}</small><b>${t('stats.daysVal', { n: st.workDays })}</b></div>
+          <div><small>${t('stats.avg')}</small><b class="amount">${money(st.avgPerDay)}</b></div>
+          <div><small>${t('stats.eff')}</small><b class="amount">${money(st.effHourly)}</b></div>
+          <div><small>${t('stats.ot')}</small><b>${hmText(st.otMs)}</b></div>
+          <div><small>${t('stats.best')}</small><b class="amount">${st.best ? `${t('date.md', { m: statMonth + 1, d: st.best.day })} ${money0(st.best.earned)}` : '—'}</b></div>
         </div>
       </div>
       <div class="card">
-        <h2>每日薪資</h2>
-        <div class="chart">${st.days.map((d) => `<i class="${d.earned > 0 ? 'has' : ''} ${isCur && d.day === now0.getDate() ? 'today' : ''}" style="height:${d.earned > 0 ? Math.max(4, (d.earned / max) * 100) : 2}%" title="${statMonth + 1}/${d.day}:${money(d.earned)}"></i>`).join('')}</div>
+        <h2>${t('stats.daily')}</h2>
+        <div class="chart">${st.days.map((d) => `<i class="${d.earned > 0 ? 'has' : ''} ${isCur && d.day === now0.getDate() ? 'today' : ''}" style="height:${d.earned > 0 ? Math.max(4, (d.earned / max) * 100) : 2}%" title="${t('date.md', { m: statMonth + 1, d: d.day })}: ${money(d.earned)}"></i>`).join('')}</div>
         <div class="chart-axis"><span>1</span><span>${Math.round(dim / 2)}</span><span>${dim}</span></div>
       </div>`;
   }
@@ -422,24 +495,38 @@
       const v = getPath(settings, el.dataset.set);
       if (el.type === 'checkbox') el.checked = !!v; else el.value = v;
     }
-    renderBreaks(); timeNote();
+    renderDayChips(); renderBreaks(); timeNote();
   }
+  function renderDayChips() {
+    $('#dayChips').innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => `<button type="button" data-day="${d}" aria-pressed="${settings.workDays.includes(d)}">${t('wd.' + d)}</button>`).join('');
+  }
+  $('#dayChips').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    flushRecords();
+    const d = Number(b.dataset.day);
+    settings.workDays = settings.workDays.includes(d) ? settings.workDays.filter((x) => x !== d) : settings.workDays.concat(d).sort();
+    renderDayChips(); afterSettings();
+  });
   function timeNote() {
     const planned = C.plannedWorkMin(settings);
-    $('#timeNote').textContent = `預定計薪 ${hmText(planned * 60000)}(已扣除固定休息)・今日預估 ${money(C.earnedForWorked(settings, planned))}`;
+    const n = settings.workDays.length;
+    const pay = C.earnedForWorked(settings, planned) * n * 52 / 12;
+    $('#timeNote').textContent = t('set.summary', { n, h: dur(planned), pay: money0(pay) });
   }
   function renderBreaks() {
     $('#breakList').innerHTML = (settings.autoBreaks || []).map((b) => `
       <div class="break-row" data-id="${b.id}">
-        <input type="checkbox" data-bk="enabled" ${b.enabled !== false ? 'checked' : ''} aria-label="啟用">
+        <input type="checkbox" data-bk="enabled" ${b.enabled !== false ? 'checked' : ''} aria-label="${t('set.enable')}">
         <input type="time" data-bk="start" value="${b.start}">
         <input type="time" data-bk="end" value="${b.end}">
-        <button class="btn small danger" data-bk="del">刪除</button>
-      </div>`).join('') || '<p class="note">沒有固定休息時段。</p>';
+        <button class="btn small danger" data-bk="del">${t('dlg.delete')}</button>
+      </div>`).join('') || `<p class="note">${t('set.noBreaks')}</p>`;
   }
   document.addEventListener('input', (e) => {
     const el = e.target;
     if (el.dataset && el.dataset.set) {
+      flushRecords(); // 先把已過完的日子用「舊設定」定稿,再套用新設定
       let v = el.type === 'checkbox' ? el.checked : el.value;
       if (el.type === 'number' || el.dataset.set === 'notifyEvery') { v = Number(v); if (!isFinite(v)) return; }
       setPath(settings, el.dataset.set, v);
@@ -447,6 +534,7 @@
       if (el.dataset.set === 'hideAmount') applyMode();
       afterSettings(el.dataset.set === 'currency');
     } else if (el.dataset && el.dataset.bk && el.dataset.bk !== 'del') {
+      flushRecords();
       const b = settings.autoBreaks.find((x) => x.id === el.closest('.break-row').dataset.id);
       if (!b) return;
       if (el.dataset.bk === 'enabled') b.enabled = el.checked; else if (el.value) b[el.dataset.bk] = el.value;
@@ -455,6 +543,7 @@
   });
   document.addEventListener('click', (e) => {
     if (e.target.dataset && e.target.dataset.bk === 'del') {
+      flushRecords();
       const id = e.target.closest('.break-row').dataset.id;
       settings.autoBreaks = settings.autoBreaks.filter((x) => x.id !== id);
       renderBreaks(); afterSettings();
@@ -462,15 +551,18 @@
   });
   function afterSettings(rerender) { saveAll(); timeNote(); lastNotifyBucket = null; if (rerender) { renderItems(); renderHistory(); renderStats(); } tick(); }
   $('#btnAddBreak').onclick = () => {
+    flushRecords();
     settings.autoBreaks.push({ id: newId(), start: '15:00', end: '15:15', enabled: true });
     renderBreaks(); afterSettings();
   };
   $('#btnReset').onclick = () => {
-    if (!confirm('確定要把「設定與換算項目」還原成預設值嗎?(班次紀錄會保留)')) return;
-    settings = clone(D.SETTINGS); items = clone(D.ITEMS);
-    saveAll(); applyMode(); fillSettings(); fillSelects(); renderItems(); tick();
+    if (!confirm(t('confirm.reset'))) return;
+    const lang = settings.lang;
+    settings = clone(D.SETTINGS); settings.lang = lang; settings.lastFinal = C.dayStart(Date.now()) - C.DAY;
+    items = clone(D.ITEMS); overrides = {};
+    saveAll(); rerenderAll();
   };
-  $('#btnBackup').onclick = () => download('workhorse-backup.json', JSON.stringify({ app: 'workhorse', v: 1, settings, items, shifts, active }, null, 2), 'application/json');
+  $('#btnBackup').onclick = () => download('workhorse-backup.json', JSON.stringify({ app: 'workhorse', v: 2, settings, items, shifts, overrides }, null, 2), 'application/json');
   $('#btnRestore').onclick = () => $('#fileRestore').click();
   $('#fileRestore').onchange = async (e) => {
     const f = e.target.files[0]; e.target.value = '';
@@ -478,40 +570,39 @@
     try {
       const d = JSON.parse(await f.text());
       if (d.app !== 'workhorse') throw new Error('format');
-      if (!confirm('匯入會覆蓋目前的設定、換算項目與班次紀錄,確定嗎?')) return;
-      settings = merge(D.SETTINGS, d.settings || {}); items = d.items || clone(D.ITEMS); shifts = d.shifts || []; active = d.active || null;
-      saveAll(); applyMode(); fillSettings(); fillSelects(); renderItems(); renderHistory(); renderStats(); tick();
-      toast('已匯入備份');
-    } catch (err) { toast('檔案格式不正確'); }
+      if (!confirm(t('confirm.restore'))) return;
+      settings = merge(D.SETTINGS, d.settings || {}); delete settings.mini; delete settings.continueOT;
+      if (!Array.isArray(settings.workDays)) settings.workDays = clone(D.SETTINGS.workDays);
+      if (!settings.lastFinal) settings.lastFinal = C.dayStart(Date.now()) - C.DAY;
+      items = d.items ? migrateItems(d.items) : clone(D.ITEMS); shifts = d.shifts || []; overrides = d.overrides || {};
+      I.set(settings.lang || I.detect());
+      saveAll(); rerenderAll(); toast(t('toast.restored'));
+    } catch (err) { toast(t('toast.badFile')); }
   };
 
+  /* ---------- 下拉選單 / 語言 ---------- */
   function fillSelects() {
-    $('#citySelect').innerHTML = Object.keys(D.CITY_LUNCH).map((c) => `<option>${c}</option>`).join('');
+    $('#citySelect').innerHTML = Object.keys(D.CITY_LUNCH).map((c) => `<option value="${c}">${t('city.' + c)}</option>`).join('');
     $('#citySelect').value = settings.city;
-    $('#currencySelect').innerHTML = Object.values(D.CURRENCIES).map((c) => `<option value="${c.code}">${c.symbol} ${c.name}</option>`).join('');
+    $('#currencySelect').innerHTML = Object.values(D.CURRENCIES).map((c) => `<option value="${c.code}">${c.symbol} ${t('cur.' + c.code)}</option>`).join('');
     $('#currencySelect').value = settings.currency;
-    form.category.innerHTML = D.CATEGORIES.map((c) => `<option>${c}</option>`).join('');
-    form.icon.innerHTML = Object.keys(D.REWARD_ICON_LABELS).filter((k) => A.url('reward_icons.' + k)).map((k) => `<option value="${k}">${D.REWARD_ICON_LABELS[k]}</option>`).join('');
+    $('#notifySelect').innerHTML = [['0', 'set.never'], ['15', 'set.15'], ['30', 'set.30'], ['60', 'set.60']].map(([v, k]) => `<option value="${v}">${t(k)}</option>`).join('');
+    $('#notifySelect').value = String(settings.notifyEvery);
+    form.category.innerHTML = D.CATEGORIES.map((c) => `<option value="${c}">${t('cat.' + c)}</option>`).join('');
+    form.icon.innerHTML = D.REWARD_ICONS.filter((k) => A.url('reward_icons.' + k)).map((k) => `<option value="${k}">${t('icon.' + k)}</option>`).join('');
+    $('#langSelect').innerHTML = Object.entries(I.LANGS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+    $('#langSelect').value = I.lang;
   }
-
-  /* ---------- 模式 ---------- */
-  function autoSmall() { return window.innerHeight <= 260 && window.innerWidth <= 420; }
-  function applyMode() {
-    document.body.classList.toggle('mini', !!settings.mini || autoSmall());
-    document.body.classList.toggle('hide-amount', !!settings.hideAmount);
-    $('#btnMini').textContent = document.body.classList.contains('mini') ? '展開' : '迷你';
+  function rerenderAll() {
+    I.apply(); fillSelects(); fillSettings(); applyMode();
+    renderItems(); renderHistory(); renderStats();
+    lastNext = ''; lastNotifyBucket = null; tick();
   }
-  function resizeWindow(w, h) {
-    try {
-      window.resizeTo(w + (window.outerWidth - window.innerWidth), h + (window.outerHeight - window.innerHeight));
-    } catch (e) { /* 一般分頁不允許調整大小 */ }
-  }
-  $('#btnMini').onclick = () => {
-    const goMini = !document.body.classList.contains('mini');
-    settings.mini = goMini; saveAll(); applyMode();
-    resizeWindow(goMini ? 330 : 400, goMini ? 190 : 540);
+  $('#langSelect').onchange = (e) => {
+    settings.lang = e.target.value; I.set(settings.lang); saveAll(); rerenderAll();
   };
-  window.addEventListener('resize', applyMode);
+
+  function applyMode() { document.body.classList.toggle('hide-amount', !!settings.hideAmount); }
   document.addEventListener('keydown', (e) => {
     if (e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === 'h' || e.key === 'H') { settings.hideAmount = !settings.hideAmount; saveAll(); applyMode(); fillSettings(); }
@@ -521,25 +612,26 @@
   const imgCache = {};
   async function img(ref) { return imgCache[ref] || (imgCache[ref] = await A.loadImage(ref)); }
   async function drawCard() {
-    const T = ctxNow();
+    const T = nowT();
     const lines = [];
     for (const it of items) {
       if (it.enabled === false || it.kind === 'goal') continue;
       const n = Math.floor(T.earned / it.price + 1e-9);
-      if (n >= 1) lines.push({ label: it.name, value: `× ${n}`, n, ref: 'reward_icons.' + iconOf(it) });
+      if (n >= 1) lines.push({ label: itemName(it), value: `× ${n}`, n, ref: 'reward_icons.' + iconOf(it) });
     }
     lines.sort((a, b) => b.n - a.n);
     for (const g of items.filter((it) => it.enabled !== false && it.kind === 'goal' && C.itemProgress(T, it).unlocked)) {
-      lines.unshift({ label: g.name, value: '已解鎖', ref: 'reward_icons.' + iconOf(g) });
+      lines.unshift({ label: itemName(g), value: t('share.unlocked'), ref: 'reward_icons.' + iconOf(g) });
     }
-    if (!lines.length) lines.push({ label: '第一份快到了,繼續努力', value: '…', ref: 'brand.coffee_cup_illustration' });
+    if (!lines.length) lines.push({ label: t('share.keepGoing'), value: '…', ref: 'brand.coffee_cup_illustration' });
     const top = lines.slice(0, 3);
     for (const l of top) l.icon = await img(l.ref);
     const d = new Date();
     ShareCard.draw($('#shareCanvas'), {
+      title: t('share.title'), todayLabel: t('share.today'), footer: t('share.foot'), brand: t('brand.name'),
       dateText: `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`,
       amountText: $('#shareShowAmount').checked ? money(T.earned) : null,
-      workedText: hmText(T.workedMs), lines: top, logo: await img('brand.cow_coffee_logo'),
+      workedText: t('share.worked', { t: hmText(T.workedMs) }), lines: top, logo: await img('brand.cow_coffee_logo'),
     });
   }
   $('#btnShare').onclick = async () => { await drawCard(); $('#shareDialog').showModal(); };
@@ -555,21 +647,22 @@
     try {
       const blob = await ShareCard.toBlob($('#shareCanvas'));
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-      toast('已複製圖片');
-    } catch (e) { toast('此瀏覽器無法複製,請改用下載'); }
+      toast(t('toast.copied'));
+    } catch (e) { toast(t('toast.copyFail')); }
   };
 
   /* ---------- 啟動 ---------- */
   A.hydrate();
   const pat = A.url('backgrounds.coffee_doodle_pattern');
   if (pat) document.documentElement.style.setProperty('--pattern-url', `url("${pat}")`);
-  fillSelects(); fillSettings(); applyMode(); renderItems(); renderHistory(); renderStats();
-  let first = !localStorage.getItem(K.settings);
+  I.apply(); fillSelects(); fillSettings(); applyMode();
+  flushRecords();
+  renderItems(); renderHistory(); renderStats();
   let v = 'home';
   try { v = sessionStorage.getItem('wh.view') || 'home'; } catch (e) { /* ignore */ }
-  showView(v === 'settings' ? 'home' : v);
+  showView(v);
   setInterval(tick, 250);
   document.addEventListener('visibilitychange', tick);
-  if (first) { saveAll(); toast('先到右上角齒輪設定你的時薪與上下班時間'); }
+  if (!hadSettings) { saveAll(); toast(t('toast.first')); }
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

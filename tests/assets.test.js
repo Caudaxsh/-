@@ -20,7 +20,8 @@ for (const g in json) {
   }
 }
 const src = ['index.html', 'js/app.js', 'js/defaults.js'].map((f) => fs.readFileSync(path.join(__dirname, '..', 'public', f), 'utf8')).join('\n');
-const refs = new Set([...src.matchAll(/(?:data-asset="|A\.url\('|A\.img\('|A\.img\(`|url\('|'\s*)((?:brand|ui_icons|reward_icons|mascot|backgrounds)\.[a-z_0-9]+)/g)].map((m) => m[1]));
+const stripI18n = (x) => x.replace(/\bt\('[\w.]+'/g, "t('").replace(/data-i18n[\w-]*="[\w.]+"/g, '');
+const refs = new Set([...stripI18n(src).matchAll(/(?:data-asset="|A\.url\('|A\.img\('|A\.img\(`|url\('|'\s*)((?:brand|ui_icons|reward_icons|mascot|backgrounds)\.[a-z_0-9]+)/g)].map((m) => m[1]));
 for (const r of refs) { const [g, k] = r.split('.'); assert(json[g] && json[g][k], 'unknown asset ref ' + r); }
 for (const k of Object.values(require('vm').runInNewContext('var window={};' + fs.readFileSync(path.join(__dirname, '..', 'public/js/defaults.js'), 'utf8') + ';window.Defaults.ICON_BY_CATEGORY'))) assert(json.reward_icons[k], 'category icon ' + k);
 console.log(`assets ok: ${n} files, ${refs.size} refs`);

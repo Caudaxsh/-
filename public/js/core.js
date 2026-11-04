@@ -127,53 +127,77 @@
       .map(([a, b]) => [Math.max(a, ref + s * MIN), Math.min(b, ref + e * MIN)]));
     return e - s - sumLen(wins) / MIN;
   }
-  function plannedSpanMin(cfg) {
-    const s = toMin(cfg.start);
-    let e = toMin(cfg.end);
-    if (e <= s) e += 1440;
-    return e - s;
+  /* ---------- 班表:週幾上班、幾點到幾點,全部依「當地時間」自動推算 ---------- */
+  const p2 = (n) => String(n).padStart(2, '0');
+  function ymd(ms) { const d = new Date(ms); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  /** overrides[ymd] = { off:true }(請假/放假) 或 { work:true }(補班),另可有 extendMin(加班分鐘) */
+  function isWorkday(cfg, dayMs, ov) {
+    if (ov && ov.off) return false;
+    if (ov && ov.work) return true;
+    return (cfg.workDays || [1, 2, 3, 4, 5]).includes(new Date(dayMs).getDay());
   }
-  /** 預定下班的時間戳(跨午夜、提早/晚打卡皆可) */
-  function scheduledEnd(startMs, cfg) {
-    const span = plannedSpanMin(cfg) * MIN;
-    const endMin = toMin(cfg.end);
-    let cand = atLocal(dayStart(startMs), endMin);
-    if (cand <= startMs && toMin(cfg.end) <= toMin(cfg.start)) cand += DAY; // 跨夜班
-    if (cand <= startMs || cand - startMs > span + 3 * HOUR) cand = startMs + span;
-    return cand;
+  /** 某一天(當天 00:00 的時間戳)的班次,不上班則 null */
+  function shiftFor(cfg, dayMs, ov) {
+    if (!isWorkday(cfg, dayMs, ov)) return null;
+    const sm = toMin(cfg.start);
+    const em = toMin(cfg.end);
+    const start = dayMs + sm * MIN;
+    let end = dayMs + em * MIN;
+    if (em <= sm) end += DAY; // 跨夜班
+    const extend = (ov && ov.extendMin) || 0;
+    return { start, end: end + extend * MIN, baseEnd: end, day: dayMs, extendMin: extend, breaks: [] };
+  }
+  function nextShift(cfg, ovs, now) {
+    const t0 = dayStart(now);
+    for (let i = 0; i < 15; i++) {
+      const day = dayStart(t0 + i * DAY + 12 * HOUR);
+      const s = shiftFor(cfg, day, ovs[ymd(day)]);
+      if (s && s.start > now) return s;
+    }
+    return null;
   }
 
-  /* ---------- 今日彙總(可含多個班次) ---------- */
   function dailyGoal(cfg) {
     return Number(cfg.dailyGoal) > 0 ? Number(cfg.dailyGoal) : earnedForWorked(cfg, Number(cfg.regularHours) * 60);
   }
-  function today(cfg, shifts, active, now) {
+
+  /**
+   * 現在的狀態:完全由「班表 + 現在時間」決定,不需要任何按鈕。
+   * phase: off(今天不上班) / before / working / break / done
+   */
+  function today(cfg, overrides, now) {
+    const ovs = overrides || {};
     const t0 = dayStart(now);
-    const done = shifts.filter((s) => s.end != null && dayStart(s.start) === t0);
-    const base = done.reduce((a, s) => a + (s.earned || 0), 0);
-    const baseMs = done.reduce((a, s) => a + (s.workedMs || 0), 0);
-    const a = active ? shiftState(active, cfg, now) : null;
-    const earned = base + (a ? a.earned : 0);
-    const workedMs = baseMs + (a ? a.workedMs : 0);
-    const goal = dailyGoal(cfg);
+    const prevDay = dayStart(t0 - 12 * HOUR);
+    let shift = shiftFor(cfg, prevDay, ovs[ymd(prevDay)]); // 昨天的跨夜班還沒結束?
+    if (!(shift && now >= shift.start && now < shift.end)) shift = shiftFor(cfg, t0, ovs[ymd(t0)]);
+
+    const base = {
+      now, cfg, shift, goal: dailyGoal(cfg), dayTotal: earnedForWorked(cfg, plannedWorkMin(cfg)),
+      sched: shift ? shift.end : null, ov: ovs[ymd(t0)] || null,
+    };
+    if (!shift) {
+      return { ...base, a: null, earned: 0, workedMs: 0, goalRatio: 0, phase: 'off', ratePerHour: 0, mult: 0, next: nextShift(cfg, ovs, now) };
+    }
+    const clamp = Math.min(Math.max(now, shift.start), shift.end);
+    const a = shiftState({ start: shift.start, end: null, breaks: [] }, cfg, clamp);
+    let phase;
+    if (now < shift.start) phase = 'before';
+    else if (now >= shift.end) phase = 'done';
+    else phase = isBreakAt({ breaks: [] }, cfg, now) ? 'break' : 'working';
+    const mult = phase === 'working' ? multAt(cfg, a.workedMin) : 0;
+    a.mult = mult; a.ratePerHour = Number(cfg.hourly) * mult; a.phase = phase;
     return {
-      now, base, baseMs, a, earned, workedMs, goal,
-      goalRatio: goal > 0 ? Math.min(1, earned / goal) : 0,
-      phase: a ? a.phase : done.length ? 'done' : 'idle',
-      ratePerHour: a ? a.ratePerHour : 0,
-      mult: a ? a.mult : 0,
-      sched: active ? scheduledEnd(active.start, cfg) : null,
-      dayTotal: earnedForWorked(cfg, plannedWorkMin(cfg)),
-      shift: active || null,
-      cfg,
+      ...base, a, earned: a.earned, workedMs: a.workedMs, phase, mult, ratePerHour: a.ratePerHour,
+      goalRatio: base.goal > 0 ? Math.min(1, a.earned / base.goal) : 0,
     };
   }
 
-  /** 以「實際有效速度」估算:從現在起還要多少分鐘工作才能讓今日累積達到 target */
-  function etaClock(ctx, needMs) {
-    const { now, cfg } = ctx;
-    const wins = mergeIntervals(fixedBreakWindows(cfg.autoBreaks, now, now + needMs + 4 * DAY));
-    let t = now, rem = needMs;
+  /** 以「實際有效速度」估算:要再工作多久才能讓今日累積達到 target(排除休息、套用加班倍率) */
+  function etaClock(ctx, needMs, from) {
+    const cfg = ctx.cfg;
+    const wins = mergeIntervals(fixedBreakWindows(cfg.autoBreaks, from, from + needMs + 4 * DAY));
+    let t = from, rem = needMs;
     for (const [s, e] of wins) {
       if (e <= t) continue;
       if (s <= t) { t = e; continue; }
@@ -184,17 +208,18 @@
   }
   function remaining(ctx, target) {
     const gap = target - ctx.earned;
+    const days = ctx.dayTotal > 0 ? gap / ctx.dayTotal : Infinity;
     if (gap <= 1e-9) return { unlocked: true, gap: 0, minutes: 0 };
-    const wNeed = workedForEarned(ctx.cfg, target - ctx.base);
+    // 今天已經收工(或放假):算「下次上班」要多久
+    if (!ctx.shift || ctx.phase === 'done') {
+      const m = workedForEarned(ctx.cfg, gap);
+      return { unlocked: false, gap, minutes: m, eta: null, later: true, beyondEnd: false, days };
+    }
+    const wNeed = workedForEarned(ctx.cfg, target);
     if (!isFinite(wNeed)) return { unlocked: false, gap, minutes: Infinity, days: Infinity };
-    const curMin = ctx.a ? ctx.a.workedMin : 0;
-    const minutes = Math.max(0, wNeed - curMin);
-    const eta = ctx.a ? etaClock(ctx, minutes * MIN) : null;
-    return {
-      unlocked: false, gap, minutes, eta,
-      beyondEnd: eta != null && ctx.sched != null && eta > ctx.sched + 1000,
-      days: ctx.dayTotal > 0 ? gap / ctx.dayTotal : Infinity,
-    };
+    const minutes = Math.max(0, wNeed - ctx.a.workedMin);
+    const eta = etaClock(ctx, minutes * MIN, Math.max(ctx.now, ctx.shift.start));
+    return { unlocked: false, gap, minutes, eta, beyondEnd: eta > ctx.sched + 1000, days };
   }
   function itemProgress(ctx, item) {
     const price = Number(item.price);
@@ -209,21 +234,34 @@
     return { kind: 'consumable', price, count, ratio: (ctx.earned - count * price) / price, ...remaining(ctx, next) };
   }
 
-  /* ---------- 班次生命週期 ---------- */
+  /* ---------- 流水帳:上班日過完自動寫入 ---------- */
   const pickCfg = (c) => JSON.parse(JSON.stringify({
     hourly: c.hourly, regularHours: c.regularHours, ot: c.ot, autoBreaks: c.autoBreaks,
   }));
-  function startShift(now, id) { return { id: id || 's' + now.toString(36), start: now, end: null, breaks: [] }; }
-  function toggleBreak(shift, now) {
-    const open = (shift.breaks || []).find((b) => b.e == null);
-    if (open) open.e = now; else shift.breaks.push({ s: now, e: null });
-    return shift;
+  const GRACE = 2 * HOUR; // 下班後 2 小時內仍可按「加班」,之後才定稿
+  /** 把「已結束且過了緩衝時間」的班次凍結成紀錄(之後改時薪不影響舊紀錄)。回傳新的紀錄與 lastFinal。 */
+  function catchUp(cfg, overrides, records, lastFinal, now) {
+    const ovs = overrides || {};
+    const t0 = dayStart(now);
+    let last = lastFinal || t0 - DAY;
+    let day = dayStart(last + 36 * HOUR);
+    if ((t0 - day) / DAY > 120) day = t0 - 120 * DAY;
+    const out = [];
+    for (; day <= t0; day = dayStart(day + 36 * HOUR)) {
+      const sh = shiftFor(cfg, day, ovs[ymd(day)]);
+      if (sh && sh.end + GRACE > now) break;
+      if (sh) {
+        const rec = finishShift({ id: 'a' + ymd(day), start: sh.start, end: null, breaks: [], auto: true }, cfg, sh.end);
+        if (!records.some((r) => r.id === rec.id)) out.push(rec);
+      }
+      last = day;
+    }
+    return { added: out, lastFinal: last };
   }
-  /** 結束班次:凍結當時的薪資設定與結果,之後改時薪不會影響歷史 */
-  function finishShift(shift, cfg, now) {
-    const open = (shift.breaks || []).find((b) => b.e == null);
-    if (open) open.e = now;
-    shift.end = Math.max(now, shift.start);
+
+  /* ---------- 班次生命週期(補登用) ---------- */
+  function finishShift(shift, cfg, endMs) {
+    shift.end = Math.max(endMs, shift.start);
     shift.cfg = pickCfg(cfg);
     const st = shiftState(shift, shift.cfg, shift.end);
     shift.earned = st.earned;
@@ -232,11 +270,9 @@
   }
   /** 補登班次:休息分鐘直接扣除,不套用固定休息 */
   function manualShift(startMs, endMs, breakMin, cfg, id) {
-    const s = { id: id || 'm' + startMs.toString(36) + endMs.toString(36), start: startMs, end: null, breaks: [], extraBreakMs: Math.max(0, breakMin) * MIN, manual: true };
-    const c = { ...pickCfg(cfg), autoBreaks: [] };
-    s.end = endMs;
-    s.cfg = c;
-    const st = shiftState(s, c, endMs);
+    const s = { id: id || 'm' + startMs.toString(36) + endMs.toString(36), start: startMs, end: endMs, breaks: [], extraBreakMs: Math.max(0, breakMin) * MIN, manual: true };
+    s.cfg = { ...pickCfg(cfg), autoBreaks: [] };
+    const st = shiftState(s, s.cfg, endMs);
     s.earned = st.earned;
     s.workedMs = st.workedMs;
     return s;
@@ -269,13 +305,6 @@
     };
   }
 
-  function fmtDuration(minutes) {
-    if (!isFinite(minutes)) return '—';
-    const m = Math.ceil(minutes - 1e-9);
-    if (m < 60) return m + ' 分鐘';
-    const h = Math.floor(m / 60), r = m % 60;
-    return h + ' 小時' + (r ? ' ' + r + ' 分' : '');
-  }
   function fmtHMS(ms) {
     const s = Math.max(0, Math.floor(ms / 1000));
     const p = (n) => String(n).padStart(2, '0');
@@ -283,9 +312,9 @@
   }
 
   return {
-    MIN, HOUR, DAY, toMin, dayStart, tiers, earnedForWorked, workedForEarned, multAt,
-    mergeIntervals, fixedBreakWindows, breakUnion, isBreakAt, shiftState, plannedWorkMin, scheduledEnd,
-    dailyGoal, today, etaClock, remaining, itemProgress, pickCfg,
-    startShift, toggleBreak, finishShift, manualShift, monthStats, fmtDuration, fmtHMS,
+    MIN, HOUR, DAY, GRACE, toMin, dayStart, ymd, tiers, earnedForWorked, workedForEarned, multAt,
+    mergeIntervals, fixedBreakWindows, breakUnion, isBreakAt, shiftState, plannedWorkMin, isWorkday, shiftFor, nextShift,
+    dailyGoal, today, etaClock, remaining, itemProgress, pickCfg, catchUp,
+    finishShift, manualShift, monthStats, fmtHMS,
   };
 });

@@ -1,7 +1,7 @@
 /* 薪水成果卡(canvas 匯出圖)。只接收「已格式化的顯示資料」,不碰時薪、公司名稱。
  * logo 與商品圖示取用素材包內的獨立 PNG,保持原比例。 */
 window.ShareCard = (function () {
-  const FONT = '"Noto Sans TC","Microsoft JhengHei","Segoe UI",sans-serif';
+  const FONT = '"Noto Sans TC","Microsoft JhengHei","Yu Gothic","Meiryo","Segoe UI",sans-serif';
 
   function rr(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -21,7 +21,7 @@ window.ShareCard = (function () {
   }
 
   /**
-   * data: { dateText, amountText|null, workedText, lines:[{label,value,icon?:Image}], logo?:Image }
+   * data: { title, todayLabel, footer, brand, dateText, amountText|null, workedText, lines:[{label,value,icon?:Image}], logo?:Image }
    */
   function draw(canvas, data) {
     const W = canvas.width, H = canvas.height;
@@ -33,16 +33,16 @@ window.ShareCard = (function () {
     contain(ctx, data.logo, W / 2 - 50, 80, 100, 130);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#4A3428'; ctx.font = `700 46px ${FONT}`;
-    ctx.fillText('今日牛馬成果', W / 2, 262);
+    ctx.fillText(data.title, W / 2, 262);
     ctx.fillStyle = '#7D6757'; ctx.font = `400 28px ${FONT}`;
     ctx.fillText(data.dateText, W / 2, 304);
 
     ctx.fillStyle = '#7D6757'; ctx.font = `400 28px ${FONT}`;
-    ctx.fillText('今天累積薪資', W / 2, 366);
+    ctx.fillText(data.todayLabel, W / 2, 366);
     ctx.fillStyle = '#4A3428'; ctx.font = `700 ${data.amountText ? 112 : 84}px ${FONT}`;
     ctx.fillText(data.amountText || '＊＊＊', W / 2, 470);
     ctx.fillStyle = '#7D6757'; ctx.font = `400 30px ${FONT}`;
-    ctx.fillText('工時 ' + data.workedText, W / 2, 520);
+    ctx.fillText(data.workedText, W / 2, 520);
 
     const lines = data.lines.slice(0, 3);
     const top = 570, rowH = 104;
@@ -58,8 +58,8 @@ window.ShareCard = (function () {
     });
 
     ctx.textAlign = 'center'; ctx.fillStyle = '#7D6757'; ctx.font = `400 22px ${FONT}`;
-    ctx.fillText('薪資等值僅供參考,不代表扣稅與其他成本後的可支配金額', W / 2, H - 82);
-    ctx.fillText('牛馬薪水計 WorkHorse', W / 2, H - 52);
+    ctx.fillText(data.footer, W / 2, H - 82);
+    ctx.fillText(data.brand + ' WorkHorse', W / 2, H - 52);
   }
 
   const toBlob = (canvas) => new Promise((res) => canvas.toBlob(res, 'image/png'));
