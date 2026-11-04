@@ -7,7 +7,7 @@
   const P = window.Prices;
   const ST = window.Stocks;
   const t = I.t;
-  const K = { settings: 'wh.settings.v1', items: 'wh.items.v2', itemsOld: 'wh.items.v1', shifts: 'wh.shifts.v1', overrides: 'wh.overrides.v1', fx: 'wh.fx.v1' };
+  const K = { settings: 'wh.settings.v1', items: 'wh.items.v3', itemsV2: 'wh.items.v2', itemsOld: 'wh.items.v1', shifts: 'wh.shifts.v1', overrides: 'wh.overrides.v1', fx: 'wh.fx.v1' };
 
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const $ = (s, r = document) => r.querySelector(s);
@@ -24,7 +24,7 @@
   }
   const hasKey = (key) => { try { return localStorage.getItem(key) != null; } catch (e) { return false; } };
   function put(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ } }
-  function saveAll() { put(K.settings, settings); put(K.items, items); put(K.shifts, shifts); put(K.overrides, overrides); }
+  function saveAll() { itemsAll[settings.country] = { v: P.VERSION, items }; put(K.settings, settings); put(K.items, itemsAll); put(K.shifts, shifts); put(K.overrides, overrides); }
   function merge(base, over) {
     const out = clone(base);
     for (const k in over) out[k] = over[k] && typeof over[k] === 'object' && !Array.isArray(over[k]) ? Object.assign(out[k] || {}, over[k]) : over[k];
@@ -46,6 +46,7 @@
   function normalizeItems(list) {
     return list.map((it) => {
       const o = { ...it };
+      if (!o.ref && /^i[1-7]$/.test(o.id || '') && !o.nameKey) o.ref = 'legacy-' + o.id; // 最早期版本的預設項目 → 交給新清單取代
       if (!o.ref && o.nameKey && LEGACY_REF[o.nameKey]) { o.ref = LEGACY_REF[o.nameKey]; const d = P.COUNTRIES.TW.items.find((x) => x.ref === o.ref); if (d && o.est === undefined) o.est = d.est; }
       return o;
     });
@@ -64,8 +65,20 @@
     if (hadSettings) { settings.wageTouched = true; settings.otTouched = true; } // 舊使用者的設定不動
     else { const c = P.COUNTRIES[settings.country]; settings.currency = c.currency; settings.hourly = c.hourly; settings.ot = clone(c.ot); }
   }
-  let items = normalizeItems(hasKey(K.items) ? load(K.items, []) : hasKey(K.itemsOld) ? migrateItems(load(K.itemsOld, [])) : P.itemsFor(settings.country));
-  if (!items.length && !hasKey(K.items)) items = P.itemsFor(settings.country);
+  // 每個國家各自一份清單:進入日本只看到日本的東西
+  let itemsAll = load(K.items, null);
+  if (!itemsAll || typeof itemsAll !== 'object' || Array.isArray(itemsAll)) {
+    itemsAll = {};
+    const legacy = hasKey(K.itemsV2) ? load(K.itemsV2, []) : hasKey(K.itemsOld) ? migrateItems(load(K.itemsOld, [])) : null;
+    if (Array.isArray(legacy) && legacy.length) itemsAll[settings.country] = { v: 0, items: normalizeItems(legacy) };
+  }
+  /** 取得某國清單;預設清單有新版本時,自動換新(保留自己新增 / 改過的項目與股票) */
+  function listFor(code) {
+    const e = itemsAll[code];
+    if (!e || !Array.isArray(e.items)) return P.itemsFor(code);
+    return e.v === P.VERSION ? e.items : P.upgrade(code, e.items);
+  }
+  let items = listFor(settings.country);
   let fx = load(K.fx, { rates: null, at: 0 });
   const stockState = {}; // id -> 'loading' | 'error'(只存在記憶體)
   let shifts = load(K.shifts, []);
@@ -307,7 +320,7 @@
     if (it.manual > 0) return { text: t('stock.metaManual', { sym }), err: false };
     if (stockState[it.id] === 'loading') return { text: t('stock.loading', { sym }), err: false };
     if (!it.quote) return { text: t(stockState[it.id] === 'error' ? 'stock.error' : 'stock.noQuote', { sym }), err: stockState[it.id] === 'error' };
-    let text = t('stock.meta', { sym, price: num(it.quote.close, { maximumFractionDigits: 2 }), cur: it.quote.currency, date: it.quote.date });
+    let text = t('stock.meta', { sym, price: num(it.quote.close, { maximumFractionDigits: 2 }), cur: it.quote.currency, date: it.quote.date }) + ' ・' + srcLabel(it.quote.src);
     if (it.quote.currency !== settings.currency) text += it.fxMissing ? ' ・' + t('stock.fx', { cur: cur().symbol }) : ` ≈ ${money0(it.price)}`;
     if (stockState[it.id] === 'error') text += ' ・' + t('stock.error', { sym: '' }).replace(/^・/, '');
     return { text, err: !!it.fxMissing || stockState[it.id] === 'error' };
@@ -385,6 +398,7 @@
     };
     if (it) {
       if (data.price !== Number(it.price)) it.est = false; // 使用者改過價格 → 不再是「約」
+      if (it.ref) it.custom = true; // 改過的預設項目,預設清單更新時保留
       Object.assign(it, data);
       if (!(it.nameKey && typed === t(it.nameKey))) { delete it.nameKey; it.name = typed || catName(data.category); } // 使用者改過名字就不再自動翻譯
     } else items.push({ id: newId(), enabled: true, name: typed || catName(data.category), ...data });
@@ -599,10 +613,10 @@
     const lang = settings.lang, country = settings.country, c = P.COUNTRIES[country];
     settings = clone(D.SETTINGS); settings.lang = lang; settings.lastFinal = C.dayStart(Date.now()) - C.DAY;
     settings.country = country; settings.currency = c.currency; settings.hourly = c.hourly; settings.ot = clone(c.ot);
-    items = P.itemsFor(country); overrides = {};
+    itemsAll = {}; items = P.itemsFor(country); overrides = {};
     saveAll(); rerenderAll();
   };
-  $('#btnBackup').onclick = () => download('workhorse-backup.json', JSON.stringify({ app: 'workhorse', v: 2, settings, items, shifts, overrides }, null, 2), 'application/json');
+  $('#btnBackup').onclick = () => download('workhorse-backup.json', JSON.stringify({ app: 'workhorse', v: 3, settings, items: (saveAll(), itemsAll), shifts, overrides }, null, 2), 'application/json');
   $('#btnRestore').onclick = () => $('#fileRestore').click();
   $('#fileRestore').onchange = async (e) => {
     const f = e.target.files[0]; e.target.value = '';
@@ -616,7 +630,8 @@
       if (!settings.lastFinal) settings.lastFinal = C.dayStart(Date.now()) - C.DAY;
       if (!settings.country) { settings.country = 'TW'; settings.wageTouched = true; settings.otTouched = true; }
       settings.currency = (P.COUNTRIES[settings.country] || P.COUNTRIES.TW).currency;
-      items = normalizeItems(d.items ? migrateItems(d.items) : P.itemsFor(settings.country)); shifts = d.shifts || []; overrides = d.overrides || {};
+      itemsAll = Array.isArray(d.items) ? { [settings.country]: { v: 0, items: normalizeItems(migrateItems(d.items)) } } : (d.items && typeof d.items === 'object' ? d.items : {});
+      items = listFor(settings.country); shifts = d.shifts || []; overrides = d.overrides || {};
       I.set(settings.lang || I.detect());
       saveAll(); rerenderAll(); toast(t('toast.restored'));
     } catch (err) { toast(t('toast.badFile')); }
@@ -628,7 +643,7 @@
       sel.innerHTML = D.COUNTRIES.map((c) => `<option value="${c}">${t('country.' + c)}(${D.CURRENCIES[P.COUNTRIES[c].currency].symbol})</option>`).join('');
       sel.value = settings.country;
     }
-    $('#stockMarket').innerHTML = ['US', 'TW', 'JP'].map((m) => `<option value="${m}">${t('stock.mkt.' + m)}</option>`).join('');
+    fillMarkets();
     $('#notifySelect').innerHTML = [['0', 'set.never'], ['15', 'set.15'], ['30', 'set.30'], ['60', 'set.60']].map(([v, k]) => `<option value="${v}">${t(k)}</option>`).join('');
     $('#notifySelect').value = String(settings.notifyEvery);
     form.category.innerHTML = D.CATEGORIES.map((c) => `<option value="${c}">${t('cat.' + c)}</option>`).join('');
@@ -694,9 +709,22 @@
     } catch (e) { toast(t('toast.copyFail')); }
   };
 
-  /* ---------- 匯率與股票報價 ---------- */
+  /* ---------- 每日資料檔(官方 / 彙整)、匯率與股票報價 ---------- */
+  const BUILD = (document.querySelector('meta[name=build]') || {}).content || 'dev';
+  let market = null; // data/market.json:台股來自證交所/櫃買中心官方 OpenAPI,美日股為 Yahoo+Stooq 每日彙整
+  async function loadMarket() {
+    try {
+      const r = await fetch('data/market.json?v=' + encodeURIComponent(BUILD), { cache: 'no-cache' });
+      if (r.ok) market = await r.json();
+    } catch (e) { market = null; }
+    if (market && market.fx && market.fx.rates) { fx = { rates: market.fx.rates, at: Date.parse(market.generatedAt) || Date.now(), src: 'data' }; put(K.fx, fx); }
+    return market;
+  }
+  const marketData = () => market;
+  const srcLabel = (src) => t('stock.from', { src: t('stock.src.' + (src || 'live')) });
   const HOURS6 = 6 * C.HOUR, HOURS12 = 12 * C.HOUR;
   async function ensureRates(force) {
+    if (market && market.fx && market.fx.rates) return fx.rates; // 每日資料檔的匯率優先
     if (!force && fx.rates && Date.now() - fx.at < HOURS12) return fx.rates;
     try {
       fx = { rates: await ST.fetchRates({ proxy: settings.quoteProxy }), at: Date.now() };
@@ -719,8 +747,22 @@
   async function refreshQuotes(force, onlyId) {
     if (refreshing) return;
     const targets = items.filter((it) => it.kind === 'stock' && !(it.manual > 0) && (!onlyId || it.id === onlyId));
-    const stale = (it) => force || !it.quote || Date.now() - it.quote.at > HOURS6 || (it.quote.currency !== settings.currency && !fx.rates);
-    if (!targets.some(stale)) { repriceStocks(); return; }
+    // 1) 先用每日資料檔(不需網路請求)
+    let changed = false;
+    for (const it of targets) {
+      const d = ST.dataQuote(market, it.symbol);
+      if (d && (!it.quote || it.quote.date !== d.date || it.quote.src !== d.src || it.quote.close !== d.close)) {
+        it.quote = { close: d.close, currency: d.currency, date: d.date, src: d.src, at: Date.now() };
+        it.symbol = d.symbol; delete stockState[it.id]; changed = true;
+      }
+    }
+    // 2) 資料檔沒有的,才即時查詢(非官方來源)
+    const stale = (it) => !ST.dataQuote(market, it.symbol) && (force || !it.quote || Date.now() - it.quote.at > HOURS6);
+    if (!targets.some(stale)) {
+      repriceStocks(); if (changed) { saveAll(); if ($('#view-rewards').classList.contains('active')) renderItems(); }
+      if (force && onlyId) toast(t('toast.quoteUpdated'));
+      return;
+    }
     refreshing = true;
     try {
       await ensureRates(force);
@@ -729,7 +771,7 @@
         stockState[it.id] = 'loading'; if ($('#view-rewards').classList.contains('active')) renderItems();
         try {
           const q = await ST.fetchQuote(it.symbol, { proxy: settings.quoteProxy });
-          it.quote = { close: q.close, currency: q.currency, date: q.date, at: Date.now() };
+          it.quote = { close: q.close, currency: q.currency, date: q.date, src: 'live', at: Date.now() };
           it.symbol = q.yahoo || it.symbol;
           delete stockState[it.id];
         } catch (e) { stockState[it.id] = 'error'; }
@@ -744,45 +786,41 @@
   }
 
   /* ---------- 切換國家:幣別、物價、(未手動改過的)時薪與加班倍率 ---------- */
-  async function applyCountry(code) {
+  function applyCountry(code) {
     if (!P.COUNTRIES[code] || code === settings.country) { fillSelects(); return; }
     flushRecords();
+    itemsAll[settings.country] = { v: P.VERSION, items }; // 先存好目前國家的清單
     const c = P.COUNTRIES[code];
-    const oldCur = settings.currency;
-    const own = items.filter((it) => !it.ref && it.kind !== 'stock'); // 使用者自己新增的項目
-    const stocks = items.filter((it) => it.kind === 'stock');
     settings.country = code; settings.currency = c.currency;
+    items = listFor(code); // 只載入該國自己的清單(含你在該國新增的項目與股票)
     const msg = [t('toast.country', { country: t('country.' + code), cur: cur().symbol })];
     if (!settings.wageTouched) { settings.hourly = c.hourly; msg.push(t('toast.countryWage')); } else msg.push(t('toast.countryKeep', { cur: cur().symbol }));
     if (!settings.otTouched) { settings.ot = clone(c.ot); settings.regularHours = 8; }
-    items = P.itemsFor(code).concat(own, stocks);
     lastNotifyBucket = null;
-    saveAll(); fillSettings(); fillSelects(); renderItems(); tick();
+    repriceStocks(); saveAll(); fillSettings(); fillSelects(); renderItems(); tick();
     toast(msg.join(' '));
-    // 幣別變了:自己新增的項目與股票用匯率換算
-    if (oldCur !== c.currency) {
-      const rates = await ensureRates(false);
-      const rate = rates && rates[oldCur] && rates[c.currency] ? rates[c.currency] / rates[oldCur] : null;
-      if (rate) {
-        for (const it of own) { it.price = Math.max(0.01, Math.round(it.price * rate)); if (it.saved) it.saved = Math.round(it.saved * rate); }
-      } else if (own.length) toast(t('toast.itemsNoFx'));
-      repriceStocks(); saveAll(); renderItems(); tick();
-      refreshQuotes(false);
-    }
+    refreshQuotes(false);
   }
   for (const sel of $$('.country-select')) sel.onchange = (e) => applyCountry(e.target.value);
 
   /* ---------- 股票對話框 ---------- */
   const sDlg = $('#stockDialog'), sForm = $('#stockForm');
-  let stockPick = null, stockQuote = null, editingStock = null, searchSeq = 0;
+  let stockPick = null, stockQuote = null, editingStock = null, searchSeq = 0, lastResults = [];
+  const allowedMarkets = () => P.COUNTRIES[settings.country].markets;
+  function fillMarkets(extra) {
+    const ms = allowedMarkets().concat(extra && !allowedMarkets().includes(extra) ? [extra] : []);
+    $('#stockMarket').innerHTML = ms.map((m) => `<option value="${m}">${t('stock.mkt.' + m)}</option>`).join('');
+  }
+  const baseHint = () => t('stock.noPick') + (settings.country === 'PH' ? ' ' + t('stock.phNote') : '');
   const setStatus = (text) => { $('#stockStatus').textContent = text; };
-  const fmtNative = (q) => t('stock.got', { price: num(q.close, { maximumFractionDigits: 2 }), cur: q.currency, date: q.date });
+  const fmtNative = (q) => t('stock.got', { price: num(q.close, { maximumFractionDigits: 2 }), cur: q.currency, date: q.date }) + ' ・' + srcLabel(q.src);
   function openStock(id) {
     editingStock = id || null;
     const it = items.find((i) => i.id === id);
     stockPick = it ? { symbol: it.symbol, market: it.market, name: it.name } : null;
     stockQuote = it ? it.quote : null;
-    sForm.market.value = it ? it.market : P.COUNTRIES[settings.country].market;
+    fillMarkets(it && it.market);
+    sForm.market.value = it ? it.market : allowedMarkets()[0];
     sForm.q.value = it ? it.symbol : '';
     sForm.manual.value = it && it.manual > 0 ? it.manual : '';
     $('#stockManualLabel').textContent = t('stock.manual', { cur: cur().symbol });
@@ -790,23 +828,34 @@
     $('#stockDialogTitle').textContent = t(it ? 'stock.edit' : 'stock.title');
     $('#btnSubmitStock').textContent = t(it ? 'dlg.save' : 'stock.add');
     $('#btnDeleteStock').style.display = it ? '' : 'none';
-    setStatus(it ? (stockQuote ? t('stock.picked', { name: it.name, sym: it.symbol }) + '・' + fmtNative(stockQuote) : t('stock.picked', { name: it.name, sym: it.symbol })) : t('stock.noPick'));
+    setStatus(it ? (stockQuote ? t('stock.picked', { name: it.name, sym: it.symbol }) + '・' + fmtNative(stockQuote) : t('stock.picked', { name: it.name, sym: it.symbol })) : baseHint());
     sDlg.showModal();
   }
   async function pickStock(r) {
     stockPick = r; stockQuote = null;
     sForm.market.value = r.market;
     for (const b of $$('#stockResults button')) b.classList.toggle('sel', b.dataset.sym === r.symbol);
-    setStatus(t('stock.fetching'));
     const seq = ++searchSeq;
+    const showPicked = (q) => {
+      const local = ST.convert(q.close, q.currency, settings.currency, fx.rates);
+      setStatus(t('stock.picked', { name: stockPick.name, sym: stockPick.symbol }) + '・' + fmtNative(q) + (q.currency !== settings.currency ? (local != null ? ` ≈ ${money0(local)}` : ' ・' + t('stock.fx', { cur: cur().symbol })) : ''));
+    };
+    const d = ST.dataQuote(market, r.symbol);
+    if (d) { // 每日資料檔(台股為官方資料)→ 不需即時查詢
+      stockQuote = { close: d.close, currency: d.currency, date: d.date, src: d.src, at: Date.now() };
+      stockPick = { ...r, symbol: d.symbol, name: d.name };
+      await ensureRates(false);
+      if (seq === searchSeq) showPicked(stockQuote);
+      return;
+    }
+    setStatus(t('stock.fetching'));
     try {
       const q = await ST.fetchQuote(r.symbol, { proxy: settings.quoteProxy });
       if (seq !== searchSeq) return;
-      stockQuote = { close: q.close, currency: q.currency, date: q.date, at: Date.now() };
+      stockQuote = { close: q.close, currency: q.currency, date: q.date, src: 'live', at: Date.now() };
       stockPick = { ...r, symbol: q.yahoo || r.symbol };
       await ensureRates(false);
-      const local = ST.convert(q.close, q.currency, settings.currency, fx.rates);
-      setStatus(t('stock.picked', { name: r.name, sym: stockPick.symbol }) + '・' + fmtNative(stockQuote) + (q.currency !== settings.currency ? (local != null ? ` ≈ ${money0(local)}` : ' ・' + t('stock.fx', { cur: cur().symbol })) : ''));
+      showPicked(stockQuote);
     } catch (e) {
       if (seq === searchSeq) setStatus(t('stock.fail'));
     }
@@ -814,21 +863,27 @@
   async function doStockSearch() {
     const q = sForm.q.value.trim();
     if (!q) return;
-    const market = sForm.market.value;
-    let results = ST.search(q, market);
-    const direct = ST.normalizeSymbol(market, q);
-    if (direct && !results.some((r) => r.symbol === direct)) results.unshift({ symbol: direct, market, name: direct });
+    const mk = sForm.market.value;
+    let results = ST.dataSearch(marketData(), q, [mk]);
+    for (const r of ST.search(q, mk)) if (r.market === mk && !results.some((x) => x.symbol === r.symbol)) results.push(r);
+    const direct = ST.normalizeSymbol(mk, q);
+    if (direct && !results.some((r) => r.symbol === direct || r.symbol === direct.replace(/\.TW$/, '.TWO'))) {
+      const d = ST.dataQuote(marketData(), direct);
+      results.unshift(d ? { symbol: d.symbol, market: mk, name: d.name } : { symbol: direct, market: mk, name: direct });
+    }
+    results = results.slice(0, 8);
     const draw = () => {
+      lastResults = results;
       $('#stockResults').innerHTML = results.map((r) => `<button type="button" data-sym="${esc(r.symbol)}"><span>${esc(r.name)}</span><small>${esc(r.symbol)}・${t('stock.mkt.' + r.market)}</small></button>`).join('');
     };
     draw();
     if (!results.length) {
       setStatus(t('stock.searching'));
-      try { results = await ST.remoteSearch(q, { proxy: settings.quoteProxy, lang: I.lang === 'ja' ? 'ja-JP' : I.lang === 'en' ? 'en-US' : 'zh-TW' }); } catch (e) { results = []; }
+      try { results = (await ST.remoteSearch(q, { proxy: settings.quoteProxy, lang: I.lang === 'ja' ? 'ja-JP' : I.lang === 'en' ? 'en-US' : 'zh-TW' })).filter((r) => r.market === mk); } catch (e) { results = []; }
       draw();
       if (!results.length) { setStatus(t('stock.noResult')); return; }
     }
-    if (results.length === 1 || results[0].symbol === direct) pickStock(results[0]); else setStatus(t('stock.noPick'));
+    if (results.length === 1 || (direct && results[0].symbol.startsWith(direct.replace(/\.TWO?$/, '')))) pickStock(results[0]); else setStatus(baseHint());
   }
   $('#btnStockSearch').onclick = doStockSearch;
   sForm.q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doStockSearch(); } });
@@ -836,8 +891,7 @@
     const b = e.target.closest('button');
     if (!b) return;
     const sym = b.dataset.sym;
-    const r = ST.search(sym.replace(/\.(TW|TWO|T)$/, ''), sForm.market.value).find((x) => x.symbol === sym) || { symbol: sym, market: sForm.market.value, name: b.firstChild.textContent };
-    pickStock(r);
+    pickStock(lastResults.find((x) => x.symbol === sym) || { symbol: sym, market: sForm.market.value, name: b.firstChild.textContent });
   });
   $('#btnCancelStock').onclick = () => sDlg.close();
   $('#btnDeleteStock').onclick = () => {
@@ -872,7 +926,16 @@
   showView(v);
   setInterval(tick, 250);
   repriceStocks();
-  refreshQuotes(false);
+  loadMarket().then(() => { repriceStocks(); refreshQuotes(false); if ($('#view-rewards').classList.contains('active')) renderItems(); });
+  // 舊版 Safari(< 15.4)沒有 <dialog>:補上最小可用的 showModal / close
+  for (const d of $$('dialog')) {
+    if (typeof d.showModal === 'function') continue;
+    d.classList.add('poly');
+    d.showModal = function () { this.setAttribute('open', ''); };
+    d.close = function () { this.removeAttribute('open'); };
+    const f = d.querySelector('form[method=dialog]');
+    if (f) f.addEventListener('submit', (e) => { if (!e.defaultPrevented) { e.preventDefault(); d.close(); } });
+  }
   setInterval(() => refreshQuotes(false), 30 * 60000);
   document.addEventListener('visibilitychange', tick);
   if (!hadSettings) { saveAll(); toast(t('toast.first')); }

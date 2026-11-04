@@ -6,10 +6,12 @@
 <title>牛馬薪水計 WorkHorse</title>
 <meta name="description" content="即時顯示今天賺了多少錢(到小數點後兩位),並換算成咖啡、便當、手搖飲。">
 <meta name="theme-color" content="#F8F4EE">
+<meta name="build" content="__BUILD__">
+<script src="js/boot.js?v=__BUILD__"></script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="assets/workhorse/brand/app_icon_512.png">
 <link rel="apple-touch-icon" href="assets/workhorse/brand/app_icon_512.png">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=__BUILD__">
 </head>
 <body>
 <div id="app">
@@ -164,6 +166,16 @@
 
 <div id="toast" role="status" aria-live="polite"></div>
 
+<!-- 載入失敗時顯示(由 js/boot.js 控制) -->
+<div id="bootError" class="boot-error" role="alert" hidden>
+  <b>網頁載入出了問題 / Something went wrong / エラーが発生しました</b>
+  <code id="bootErrorMsg"></code>
+  <div class="row wrap">
+    <button class="btn small" onclick="location.reload()">重新載入 Reload</button>
+    <button class="btn small primary" onclick="WH_RESET()">清除快取並重新載入 Clear cache</button>
+  </div>
+</div>
+
 <!-- 換算項目編輯 -->
 <dialog id="itemDialog">
   <form method="dialog" id="itemForm">
@@ -242,14 +254,14 @@
   </div>
 </dialog>
 
-<script src="assets/workhorse/asset-manifest.js"></script>
-<script src="js/i18n.js"></script>
-<script src="js/prices.js"></script>
-<script src="js/defaults.js"></script>
-<script src="js/assets.js"></script>
-<script src="js/core.js"></script>
-<script src="js/stocks.js"></script>
-<script src="js/share.js"></script>
-<script src="js/app.js"></script>
+<script src="assets/workhorse/asset-manifest.js?v=__BUILD__"></script>
+<script src="js/i18n.js?v=__BUILD__"></script>
+<script src="js/prices.js?v=__BUILD__"></script>
+<script src="js/defaults.js?v=__BUILD__"></script>
+<script src="js/assets.js?v=__BUILD__"></script>
+<script src="js/core.js?v=__BUILD__"></script>
+<script src="js/stocks.js?v=__BUILD__"></script>
+<script src="js/share.js?v=__BUILD__"></script>
+<script src="js/app.js?v=__BUILD__"></script>
 </body>
 </html>

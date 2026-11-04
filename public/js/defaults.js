@@ -12,9 +12,9 @@ window.Defaults = (function () {
   // 國家 → 幣別;各國物價與法定薪資參考值在 prices.js
   const COUNTRIES = ['TW', 'JP', 'PH'];
 
-  const CATEGORIES = ['coffee', 'bento', 'drink', 'hotpot', 'fun', 'transit', 'goal']; // 股票(stock)另有專屬流程
+  const CATEGORIES = ['coffee', 'food', 'bento', 'drink', 'alcohol', 'hotpot', 'fun', 'transit', 'goal']; // 股票(stock)另有專屬流程
   const ICON_BY_CATEGORY = {
-    coffee: 'coffee_to_go', bento: 'taiwanese_bento', drink: 'bubble_tea', hotpot: 'hotpot',
+    coffee: 'coffee_to_go', food: 'taiwanese_bento', bento: 'taiwanese_bento', drink: 'bubble_tea', alcohol: 'bubble_tea', hotpot: 'hotpot',
     fun: 'movie_ticket_popcorn', transit: 'metro_card', goal: 'travel_suitcase_passport',
   };
   // 舊版(中文類別)→ 新版類別 id,用於資料遷移

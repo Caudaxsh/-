@@ -4,6 +4,10 @@ on:
   push:
     branches: [master, main, claude/niuma-salary-tracker]
   workflow_dispatch:
+  schedule:
+    # 每個交易日兩次:台股/日股收盤後(台北 15:40)與美股收盤後(台北 06:40 隔日)
+    - cron: '40 7 * * 1-5'
+    - cron: '40 22 * * 1-5'
 
 permissions:
   contents: read
@@ -23,12 +27,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run tests
+        run: for t in core assets i18n prices stocks; do node tests/$t.test.js; done
+      - name: Fetch daily market data (TWSE / TPEx official OpenAPI, Yahoo + Stooq)
+        continue-on-error: true
+        run: node tools/fetch-market-data.mjs public/data/market.json
+      - name: Stamp build id (cache busting)
         run: |
-          node tests/core.test.js
-          node tests/assets.test.js
-          node tests/i18n.test.js
-          node tests/prices.test.js
-          node tests/stocks.test.js
+          BUILD="${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
+          sed -i "s/__BUILD__/${BUILD}/g" public/index.html public/sw.js
+          echo "build ${BUILD}"; grep -c "${BUILD}" public/index.html
       - uses: actions/configure-pages@v5
         with:
           enablement: true

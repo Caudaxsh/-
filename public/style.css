@@ -230,3 +230,14 @@ details.adv[open] > summary { margin-bottom: var(--sp-2); }
 .sym { display: inline-block; font-size: 10px; padding: 0 6px; border-radius: 99px; background: var(--caramel-soft); color: var(--caramel-deep); margin-left: 4px; font-weight: 600; }
 
 #btnStockSearch { white-space: nowrap; flex: none; padding: 6px 14px; }
+
+/* 載入錯誤提示 */
+.boot-error { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 200; background: var(--surface); border: 1px solid var(--bad); border-radius: 14px;
+  padding: 12px 14px; box-shadow: 0 10px 30px rgba(74, 52, 40, .2); font-size: 13px; }
+.boot-error[hidden] { display: none; }
+.boot-error code { display: block; margin: 6px 0 8px; color: var(--bad); font-size: 12px; word-break: break-all; }
+/* 舊版 Safari 沒有 <dialog> 時的替代樣式 */
+dialog.poly { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; max-height: 90vh; overflow: auto; }
+dialog.poly:not([open]) { display: none; }
+/* iPhone:輸入框字小於 16px 會自動放大畫面 */
+@media (pointer: coarse) { input, select { font-size: 16px; } }

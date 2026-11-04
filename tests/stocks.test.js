@@ -110,3 +110,27 @@ assert.deepStrictEqual(sr.map((x) => x.market), ['TW', 'JP', 'US']);
   near(fx.TWD, 32); near(fx.JPY, 150); near(fx.PHP, 58); near(fx.USD, 1);
   console.log('stocks tests passed');
 })().catch((e) => { console.error(e); process.exit(1); });
+
+// ---- 每日資料檔查詢 ----
+{
+  const data = {
+    tw: { date: '2026-11-04', list: [['2330', '台積電', 1000, 'TWSE'], ['6488', '環球晶', 500, 'TPEx'], ['0050', '元大台灣50', 180, 'TWSE'], ['00878', '國泰永續高股息', 22, 'TWSE']] },
+    us: { list: [['NVDA', 'NVIDIA Corporation', 200, '2026-11-03', 'Yahoo+Stooq'], ['AAPL', 'Apple Inc.', 250, '2026-11-03', 'Yahoo']] },
+    jp: { list: [['7203', 'トヨタ自動車', 3000, '2026-11-04', 'Stooq']] },
+  };
+  assert.equal(S.dataSearch(data, '台積電', ['TW'])[0].symbol, '2330.TW');
+  assert.equal(S.dataSearch(data, '環球晶', ['TW'])[0].symbol, '6488.TWO');      // 上櫃,只在官方資料裡
+  assert.equal(S.dataSearch(data, '6488', ['TW'])[0].symbol, '6488.TWO');
+  assert.equal(S.dataSearch(data, '高股息', ['TW'])[0].symbol, '00878.TW');       // 簡稱部分比對
+  assert.equal(S.dataSearch(data, '輝達', ['US'])[0].symbol, 'NVDA');             // 中文俗稱 → 資料檔代碼
+  assert.equal(S.dataSearch(data, 'トヨタ', ['JP'])[0].symbol, '7203.T');
+  assert.deepStrictEqual(S.dataSearch(data, '台積電', ['US']).map((r) => r.symbol), []); // 限定市場
+  assert.deepStrictEqual(S.dataSearch(null, '台積電', ['TW']), []);
+  let q = S.dataQuote(data, '6488.TW'); assert.equal(q.symbol, '6488.TWO'); assert.equal(q.src, 'TPEx'); assert.equal(q.currency, 'TWD'); assert.equal(q.date, '2026-11-04');
+  q = S.dataQuote(data, '2330.TW'); assert.equal(q.src, 'TWSE'); assert.equal(q.close, 1000);
+  q = S.dataQuote(data, 'NVDA'); assert.equal(q.currency, 'USD'); assert.equal(q.src, 'Yahoo+Stooq');
+  q = S.dataQuote(data, '7203.T'); assert.equal(q.currency, 'JPY'); assert.equal(q.close, 3000);
+  assert.equal(S.dataQuote(data, 'MSFT'), null); assert.equal(S.dataQuote(null, 'NVDA'), null);
+  assert.equal(S.marketOf('6488.TWO'), 'TW'); assert.equal(S.marketOf('7203.T'), 'JP'); assert.equal(S.marketOf('BRK-B'), 'US');
+  console.log('market data lookup tests passed');
+}

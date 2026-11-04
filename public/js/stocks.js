@@ -173,5 +173,56 @@
     return parseSearch(await fetchJSON(searchUrl(query, (opts || {}).lang), opts || {}));
   }
 
-  return { MARKETS, ALIASES, normalizeSymbol, search, parseChart, parseSearch, chartUrl, searchUrl, convert, parseRates, fetchJSON, fetchQuote, fetchRates, remoteSearch };
+
+  /* ---------- 每日官方/彙整資料檔(data/market.json,由 GitHub Actions 產生) ----------
+   * 格式:{ tw:{ date, list:[[code, 官方簡稱, close, 'TWSE'|'TPEx']] }, us|jp:{ list:[[code, name, close, date, src]] }, fx:{ rates } } */
+  const twSymbol = (row) => row[0] + (row[3] === 'TPEx' ? '.TWO' : '.TW');
+  const jpSymbol = (code) => code + '.T';
+  /** 在資料檔搜尋(代碼或官方簡稱),只回傳 allowed 市場 */
+  function dataSearch(data, query, allowed) {
+    if (!data) return [];
+    const q = norm(query);
+    if (!q) return [];
+    const ok = (m) => !allowed || allowed.includes(m);
+    const out = [];
+    const score = (code, name) => (norm(code) === q ? 100 : norm(name) === q ? 90 : norm(code).startsWith(q) ? 60 : norm(name).startsWith(q) ? 50 : q.length >= 2 && norm(name).includes(q) ? 30 : 0);
+    if (ok('TW') && data.tw && data.tw.list) for (const r of data.tw.list) { const s = score(r[0], r[1]); if (s) out.push({ s, symbol: twSymbol(r), market: 'TW', name: r[1] }); }
+    for (const [mkt, key, sym] of [['US', 'us', (c) => c], ['JP', 'jp', jpSymbol]]) {
+      if (!ok(mkt) || !data[key] || !data[key].list) continue;
+      for (const r of data[key].list) { const s = score(r[0], r[1]); if (s) out.push({ s, symbol: sym(r[0]), market: mkt, name: r[1] }); }
+    }
+    // 別名(中/日/英俗稱)也對應到資料檔裡的代碼
+    for (const a of ALIASES) {
+      if (!ok(a.mkt)) continue;
+      const hit = a.names.some((n) => norm(n) === q) ? 85 : q.length >= 2 && a.names.some((n) => norm(n).includes(q)) ? 25 : 0;
+      if (!hit) continue;
+      const symbol = yahooSymbol(a);
+      const d = dataQuote(data, symbol);
+      if (d && !out.some((o) => o.symbol === d.symbol)) out.push({ s: hit, symbol: d.symbol, market: a.mkt, name: d.name });
+    }
+    out.sort((x, y) => y.s - x.s);
+    return out.slice(0, 8).map(({ symbol, market, name }) => ({ symbol, market, name, inData: true }));
+  }
+  /** 從資料檔取報價;台股代碼可帶 .TW 或 .TWO */
+  function dataQuote(data, symbol) {
+    if (!data || !symbol) return null;
+    const s = String(symbol).toUpperCase();
+    let m;
+    if ((m = s.match(/^(\w+)\.TWO?$/)) && data.tw && data.tw.list) {
+      const r = data.tw.list.find((x) => x[0] === m[1]);
+      if (r) return { symbol: twSymbol(r), name: r[1], close: r[2], currency: 'TWD', date: data.tw.date, src: r[3] };
+    }
+    if ((m = s.match(/^(\w+)\.T$/)) && data.jp && data.jp.list) {
+      const r = data.jp.list.find((x) => x[0] === m[1]);
+      if (r) return { symbol: jpSymbol(r[0]), name: r[1], close: r[2], currency: 'JPY', date: r[3], src: r[4] };
+    }
+    if (!/\./.test(s) && data.us && data.us.list) {
+      const r = data.us.list.find((x) => x[0] === s);
+      if (r) return { symbol: r[0], name: r[1], close: r[2], currency: 'USD', date: r[3], src: r[4] };
+    }
+    return null;
+  }
+  const marketOf = (symbol) => (/\.TWO?$/i.test(symbol) ? 'TW' : /\.T$/i.test(symbol) ? 'JP' : 'US');
+
+  return { MARKETS, ALIASES, norm, normalizeSymbol, search, dataSearch, dataQuote, marketOf, parseChart, parseSearch, chartUrl, searchUrl, convert, parseRates, fetchJSON, fetchQuote, fetchRates, remoteSearch };
 });
