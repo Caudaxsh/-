@@ -316,3 +316,7 @@ details.grp > summary { font-size: 13px; font-weight: 600; }
 .lang-btn:hover { border-color: var(--caramel); }
 .lang-btn:active { transform: scale(.96); }
 .setup-body { margin: 0 0 var(--sp-3); line-height: 1.6; }
+
+.setup-head { align-items: flex-start; margin-bottom: var(--sp-2); }
+.setup-head h3 { margin: 4px 0 0; }
+.setup-head .lang-btn { flex: none; }

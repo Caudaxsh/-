@@ -829,6 +829,8 @@
       sel.value = settings.country;
     }
     fillMarkets();
+    $('#langSelect').innerHTML = Object.entries(I.LANGS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+    $('#langSelect').value = I.lang;
     $('#notifySelect').innerHTML = [['0', 'set.never'], ['15', 'set.15'], ['30', 'set.30'], ['60', 'set.60']].map(([v, k]) => `<option value="${v}">${t(k)}</option>`).join('');
     $('#notifySelect').value = String(settings.notifyEvery);
     form.category.innerHTML = D.CATEGORIES.map((c) => `<option value="${c}">${t('cat.' + c)}</option>`).join('');
@@ -839,10 +841,8 @@
     renderItems(); renderHistory(); renderStats();
     lastNext = ''; lastNotifyBucket = null; tick();
   }
-  // 一鍵切換:中文 <-> English(日文字典仍保留在程式裡,但介面不再提供切換)
-  $('#btnLang').onclick = () => {
-    const next = I.lang === 'zh-TW' ? 'en' : 'zh-TW';
-    settings.lang = next; I.set(next); saveAll(); rerenderAll();
+  $('#langSelect').onchange = (e) => {
+    settings.lang = e.target.value; I.set(settings.lang); saveAll(); rerenderAll();
   };
 
   function applyMode() { document.body.classList.toggle('hide-amount', !!settings.hideAmount); }
@@ -1134,10 +1134,18 @@
     if (!isDefaultSetup()) { markSetupDone(); return; } // 之前就改過設定的人,不打擾
     let later = false; try { later = sessionStorage.getItem('wh.setupLater') === '1'; } catch (e) { /* ignore */ }
     if (later || $$('dialog').some((d) => d.open) || !$('#bootError').hidden) return;
-    const daysTxt = [...settings.workDays].sort().join() === '1,2,3,4,5' ? t('setup.weekdays') : [1, 2, 3, 4, 5, 6, 0].filter((d) => settings.workDays.includes(d)).map((d) => t('wd.' + d)).join('、');
-    $('#setupBody').textContent = t('setup.body', { days: daysTxt, start: settings.start, end: settings.end, wage: money(settings.hourly) });
+    fillSetupBody();
     setupDlg.showModal();
   }
+  function fillSetupBody() {
+    const daysTxt = [...settings.workDays].sort().join() === '1,2,3,4,5' ? t('setup.weekdays') : [1, 2, 3, 4, 5, 6, 0].filter((d) => settings.workDays.includes(d)).map((d) => t('wd.' + d)).join('、');
+    $('#setupBody').textContent = t('setup.body', { days: daysTxt, start: settings.start, end: settings.end, wage: money(settings.hourly) });
+  }
+  // 提醒視窗裡的「Language」:一鍵 中文 <-> English(視窗上的文字會立刻跟著換)
+  $('#btnSetupLang').onclick = () => {
+    const next = I.lang === 'zh-TW' ? 'en' : 'zh-TW';
+    settings.lang = next; I.set(next); saveAll(); rerenderAll(); fillSetupBody();
+  };
   $('#btnSetupGo').onclick = () => { setupDlg.close(); showView('settings'); };
   $('#btnSetupLater').onclick = () => { try { sessionStorage.setItem('wh.setupLater', '1'); } catch (e) { /* ignore */ } setupDlg.close(); };
 

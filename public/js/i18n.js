@@ -13,7 +13,7 @@ window.I18n = (function () {
       'doc.title': '牛馬薪水計 WorkHorse',
       'brand.name': '牛馬薪水計', 'brand.sub': 'WorkHorse',
       'tab.home': '今日', 'tab.rewards': '買得起', 'tab.history': '流水帳', 'tab.stats': '戰績',
-      'btn.share': '產生成果卡(炫耀用)', 'btn.settings': '設定', 'lang.title': '切換語言:中文 / English',
+      'btn.share': '產生成果卡(炫耀用)', 'btn.settings': '設定', 'lang.title': '切換語言',
       'setup.title': '先設定你的上班時間吧', 'setup.body': '你現在還在用預設值:{days}、{start}–{end}、時薪 {wage}。先到設定調整上班日、上下班時間和時薪,賺的金額才會準。', 'setup.go': '去設定', 'setup.later': '先用預設,稍後再說', 'setup.weekdays': '週一到週五',
       'phase.before': '準備開工', 'phase.working': '牛馬運轉中', 'phase.break': '充電中', 'phase.done': '下班啦', 'phase.off': '今天放假',
       'hero.label': '今天已經賺到',
@@ -191,7 +191,7 @@ window.I18n = (function () {
       'doc.title': 'WorkHorse – watch your paycheck tick',
       'brand.name': 'WorkHorse', 'brand.sub': 'Paycheck ticker',
       'tab.home': 'Today', 'tab.rewards': 'Worth It', 'tab.history': 'Log', 'tab.stats': 'Stats',
-      'btn.share': 'Make a brag card', 'btn.settings': 'Settings', 'lang.title': 'Language: switch 中文 / English',
+      'btn.share': 'Make a brag card', 'btn.settings': 'Settings', 'lang.title': 'Language',
       'setup.title': 'Set up your work hours first', 'setup.body': 'You\'re still on the defaults: {days}, {start}–{end}, {wage}/hr. Head to Settings and set your work days, hours and wage so the numbers are actually yours.', 'setup.go': 'Go to Settings', 'setup.later': 'Use defaults for now', 'setup.weekdays': 'Mon–Fri',
       'phase.before': 'Pre-grind', 'phase.working': 'Grinding', 'phase.break': 'Recharging', 'phase.done': 'Clocked out!', 'phase.off': 'Day off',
       'hero.label': 'Earned so far today',
@@ -549,8 +549,9 @@ window.I18n = (function () {
 
   function detect() {
     const n = (navigator.language || 'zh-TW').toLowerCase();
-    // 介面只提供「中文 <-> English」一鍵切換:中文瀏覽器 -> 中文,其他 -> English
-    return n.startsWith('zh') ? 'zh-TW' : 'en';
+    if (n.startsWith('ja')) return 'ja';
+    if (n.startsWith('zh')) return 'zh-TW';
+    return n.startsWith('en') ? 'en' : 'zh-TW';
   }
   function set(l) { lang = D[l] ? l : 'zh-TW'; document.documentElement.lang = lang === 'zh-TW' ? 'zh-Hant' : lang; }
   function t(key, vars) {

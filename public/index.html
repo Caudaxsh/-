@@ -21,7 +21,7 @@
       <div><b data-i18n="brand.name">牛馬薪水計</b><small data-i18n="brand.sub">WorkHorse</small></div>
     </div>
     <div class="tools">
-      <button class="lang-btn" id="btnLang" type="button" data-i18n-aria="lang.title" data-i18n-title="lang.title">Language</button>
+      <select class="pill-select" id="langSelect" data-i18n-aria="lang.title" data-i18n-title="lang.title"></select>
       <button class="icon-btn" id="btnShare" data-i18n-aria="btn.share" data-i18n-title="btn.share"><img class="ico" data-asset="ui_icons.share" alt=""></button>
       <button class="icon-btn" id="btnSettings" data-i18n-aria="btn.settings" data-i18n-title="btn.settings"><img class="ico" data-asset="ui_icons.settings_gear" alt=""></button>
     </div>
@@ -244,7 +244,10 @@
 
 <!-- 第一次進來:還在用預設的上班設定 -->
 <dialog id="setupDialog">
-  <h3 data-i18n="setup.title">先設定你的上班時間吧</h3>
+  <div class="row between setup-head">
+    <h3 data-i18n="setup.title">先設定你的上班時間吧</h3>
+    <button class="lang-btn" id="btnSetupLang" type="button" data-i18n-aria="lang.title" data-i18n-title="lang.title">Language</button>
+  </div>
   <p id="setupBody" class="setup-body"></p>
   <div class="row end">
     <button type="button" class="btn" id="btnSetupLater" data-i18n="setup.later">先用預設,稍後再說</button>
