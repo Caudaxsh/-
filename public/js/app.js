@@ -320,7 +320,9 @@
   }
   $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (b) showView(b.dataset.view); };
   $('#btnSettings').onclick = () => showView('settings');
-  $('#btnBackHome').onclick = () => showView('home');
+  const goHome = () => { markSetupDone(); showView('home'); };
+  $('#btnBackHome').onclick = goHome;
+  $('#btnDoneBottom').onclick = goHome;
   $('#nextOpen').onclick = () => showView('rewards');
 
   /* ---------- 首頁「下一個目標」自訂 ---------- */
@@ -736,7 +738,7 @@
   $('#dayChips').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    flushRecords();
+    flushRecords(); markSetupDone();
     const d = Number(b.dataset.day);
     settings.workDays = settings.workDays.includes(d) ? settings.workDays.filter((x) => x !== d) : settings.workDays.concat(d).sort();
     renderDayChips(); afterSettings();
@@ -764,12 +766,13 @@
       if (el.type === 'number' || el.dataset.set === 'notifyEvery') { v = Number(v); if (!isFinite(v)) return; }
       setPath(settings, el.dataset.set, v);
       if (el.dataset.set === 'hourly') settings.wageTouched = true;
+      if (['hourly', 'start', 'end'].includes(el.dataset.set)) markSetupDone();
       if (el.dataset.set === 'regularHours' || el.dataset.set.startsWith('ot.')) settings.otTouched = true;
       if (el.dataset.set === 'useSystemNotification' && v && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
       if (el.dataset.set === 'hideAmount') applyMode();
       afterSettings();
     } else if (el.dataset && el.dataset.bk && el.dataset.bk !== 'del') {
-      flushRecords();
+      flushRecords(); markSetupDone();
       const b = settings.autoBreaks.find((x) => x.id === el.closest('.break-row').dataset.id);
       if (!b) return;
       if (el.dataset.bk === 'enabled') b.enabled = el.checked; else if (el.value) b[el.dataset.bk] = el.value;
@@ -778,7 +781,7 @@
   });
   document.addEventListener('click', (e) => {
     if (e.target.dataset && e.target.dataset.bk === 'del') {
-      flushRecords();
+      flushRecords(); markSetupDone();
       const id = e.target.closest('.break-row').dataset.id;
       settings.autoBreaks = settings.autoBreaks.filter((x) => x.id !== id);
       renderBreaks(); afterSettings();
@@ -786,7 +789,7 @@
   });
   function afterSettings(rerender) { saveAll(); timeNote(); lastNotifyBucket = null; if (rerender) { renderItems(); renderHistory(); renderStats(); } tick(); }
   $('#btnAddBreak').onclick = () => {
-    flushRecords();
+    flushRecords(); markSetupDone();
     settings.autoBreaks.push({ id: newId(), start: '15:00', end: '15:15', enabled: true });
     renderBreaks(); afterSettings();
   };
@@ -830,16 +833,16 @@
     $('#notifySelect').value = String(settings.notifyEvery);
     form.category.innerHTML = D.CATEGORIES.map((c) => `<option value="${c}">${t('cat.' + c)}</option>`).join('');
     form.icon.innerHTML = D.REWARD_ICONS.filter((k) => A.url('reward_icons.' + k)).map((k) => `<option value="${k}">${t('icon.' + k)}</option>`).join('') + D.UI_ICON_CHOICES.filter((k) => A.url(k)).map((k) => `<option value="${k}">${t('icon.' + k)}</option>`).join('');
-    $('#langSelect').innerHTML = Object.entries(I.LANGS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
-    $('#langSelect').value = I.lang;
   }
   function rerenderAll() {
     I.apply(); fillSelects(); fillSettings(); applyMode();
     renderItems(); renderHistory(); renderStats();
     lastNext = ''; lastNotifyBucket = null; tick();
   }
-  $('#langSelect').onchange = (e) => {
-    settings.lang = e.target.value; I.set(settings.lang); saveAll(); rerenderAll();
+  // 一鍵切換:中文 <-> English(日文字典仍保留在程式裡,但介面不再提供切換)
+  $('#btnLang').onclick = () => {
+    const next = I.lang === 'zh-TW' ? 'en' : 'zh-TW';
+    settings.lang = next; I.set(next); saveAll(); rerenderAll();
   };
 
   function applyMode() { document.body.classList.toggle('hide-amount', !!settings.hideAmount); }
@@ -1115,6 +1118,29 @@
     if (!stockQuote && !manual) refreshQuotes(true);
   };
 
+  /* ---------- 第一次進來:還在用預設的上班設定 -> 提醒去設定 ---------- */
+  const setupDlg = $('#setupDialog');
+  /** 上班日 / 上下班時間 / 休息 / 時薪 全部還是該國預設值 */
+  function isDefaultSetup() {
+    const c = P.COUNTRIES[settings.country] || P.COUNTRIES.TW, d = D.SETTINGS;
+    const sameDays = [...settings.workDays].sort().join() === [...d.workDays].sort().join();
+    const br = settings.autoBreaks || [], db = d.autoBreaks;
+    const sameBreaks = br.length === db.length && br.every((b, i) => b.start === db[i].start && b.end === db[i].end && b.enabled !== false);
+    return Number(settings.hourly) === c.hourly && sameDays && settings.start === d.start && settings.end === d.end && sameBreaks;
+  }
+  function markSetupDone() { if (!settings.setupDone) { settings.setupDone = true; saveAll(); } }
+  function showSetupNotice() {
+    if (settings.setupDone) return;
+    if (!isDefaultSetup()) { markSetupDone(); return; } // 之前就改過設定的人,不打擾
+    let later = false; try { later = sessionStorage.getItem('wh.setupLater') === '1'; } catch (e) { /* ignore */ }
+    if (later || $$('dialog').some((d) => d.open) || !$('#bootError').hidden) return;
+    const daysTxt = [...settings.workDays].sort().join() === '1,2,3,4,5' ? t('setup.weekdays') : [1, 2, 3, 4, 5, 6, 0].filter((d) => settings.workDays.includes(d)).map((d) => t('wd.' + d)).join('、');
+    $('#setupBody').textContent = t('setup.body', { days: daysTxt, start: settings.start, end: settings.end, wage: money(settings.hourly) });
+    setupDlg.showModal();
+  }
+  $('#btnSetupGo').onclick = () => { setupDlg.close(); showView('settings'); };
+  $('#btnSetupLater').onclick = () => { try { sessionStorage.setItem('wh.setupLater', '1'); } catch (e) { /* ignore */ } setupDlg.close(); };
+
   /* ---------- 啟動 ---------- */
   A.hydrate();
   const pat = A.url('backgrounds.coffee_doodle_pattern');
@@ -1139,6 +1165,7 @@
   }
   setInterval(() => refreshQuotes(false), 30 * 60000);
   document.addEventListener('visibilitychange', tick);
-  if (!hadSettings) { saveAll(); toast(t('toast.first')); }
+  if (!hadSettings) saveAll();
+  setTimeout(showSetupNotice, 600); // 還在用預設設定 -> 提醒先去設定上班時間
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

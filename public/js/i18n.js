@@ -11,9 +11,10 @@ window.I18n = (function () {
   const D = {
     'zh-TW': {
       'doc.title': '牛馬薪水計 WorkHorse',
-      'brand.name': '牛馬薪水計',
+      'brand.name': '牛馬薪水計', 'brand.sub': 'WorkHorse',
       'tab.home': '今日', 'tab.rewards': '買得起', 'tab.history': '流水帳', 'tab.stats': '戰績',
-      'btn.share': '產生成果卡(炫耀用)', 'btn.settings': '設定', 'lang.title': '切換語言',
+      'btn.share': '產生成果卡(炫耀用)', 'btn.settings': '設定', 'lang.title': '切換語言:中文 / English',
+      'setup.title': '先設定你的上班時間吧', 'setup.body': '你現在還在用預設值:{days}、{start}–{end}、時薪 {wage}。先到設定調整上班日、上下班時間和時薪,賺的金額才會準。', 'setup.go': '去設定', 'setup.later': '先用預設,稍後再說', 'setup.weekdays': '週一到週五',
       'phase.before': '準備開工', 'phase.working': '牛馬運轉中', 'phase.break': '充電中', 'phase.done': '下班啦', 'phase.off': '今天放假',
       'hero.label': '今天已經賺到',
       'rate.working': '時薪 {rate}・每分鐘進帳 {perMin}', 'rate.ot': '・加班 ×{m}', 'rate.idle': '時薪 {rate}', 'rate.paused': '時薪 {rate}・暫停計薪',
@@ -188,9 +189,10 @@ window.I18n = (function () {
 
     en: {
       'doc.title': 'WorkHorse – watch your paycheck tick',
-      'brand.name': 'WorkHorse',
+      'brand.name': 'WorkHorse', 'brand.sub': 'Paycheck ticker',
       'tab.home': 'Today', 'tab.rewards': 'Worth It', 'tab.history': 'Log', 'tab.stats': 'Stats',
-      'btn.share': 'Make a brag card', 'btn.settings': 'Settings', 'lang.title': 'Language',
+      'btn.share': 'Make a brag card', 'btn.settings': 'Settings', 'lang.title': 'Language: switch 中文 / English',
+      'setup.title': 'Set up your work hours first', 'setup.body': 'You\'re still on the defaults: {days}, {start}–{end}, {wage}/hr. Head to Settings and set your work days, hours and wage so the numbers are actually yours.', 'setup.go': 'Go to Settings', 'setup.later': 'Use defaults for now', 'setup.weekdays': 'Mon–Fri',
       'phase.before': 'Pre-grind', 'phase.working': 'Grinding', 'phase.break': 'Recharging', 'phase.done': 'Clocked out!', 'phase.off': 'Day off',
       'hero.label': 'Earned so far today',
       'rate.working': '{rate}/hr・{perMin} every minute', 'rate.ot': '・OT ×{m}', 'rate.idle': '{rate}/hr', 'rate.paused': '{rate}/hr・pay paused',
@@ -366,9 +368,10 @@ window.I18n = (function () {
 
     ja: {
       'doc.title': '社畜給料メーター WorkHorse',
-      'brand.name': '社畜給料メーター',
+      'brand.name': '社畜給料メーター', 'brand.sub': 'WorkHorse',
       'tab.home': '今日', 'tab.rewards': '買える?', 'tab.history': '記録', 'tab.stats': '成績',
       'btn.share': '自慢カードを作る', 'btn.settings': '設定', 'lang.title': '言語',
+      'setup.title': 'まずは勤務時間を設定しよう', 'setup.body': '今はまだ初期値のままだよ:{days}、{start}–{end}、時給 {wage}。設定で出勤日・勤務時間・時給を直すと、金額が正しくなるよ。', 'setup.go': '設定へ行く', 'setup.later': '今は初期値のままでいい', 'setup.weekdays': '月〜金',
       'phase.before': '出勤前', 'phase.working': '社畜稼働中', 'phase.break': '充電中', 'phase.done': 'おつかれ!', 'phase.off': 'お休み',
       'hero.label': '今日の稼ぎ',
       'rate.working': '時給 {rate}・1分で {perMin}', 'rate.ot': '・残業 ×{m}', 'rate.idle': '時給 {rate}', 'rate.paused': '時給 {rate}・給料ストップ中',
@@ -546,9 +549,8 @@ window.I18n = (function () {
 
   function detect() {
     const n = (navigator.language || 'zh-TW').toLowerCase();
-    if (n.startsWith('ja')) return 'ja';
-    if (n.startsWith('zh')) return 'zh-TW';
-    return n.startsWith('en') ? 'en' : 'zh-TW';
+    // 介面只提供「中文 <-> English」一鍵切換:中文瀏覽器 -> 中文,其他 -> English
+    return n.startsWith('zh') ? 'zh-TW' : 'en';
   }
   function set(l) { lang = D[l] ? l : 'zh-TW'; document.documentElement.lang = lang === 'zh-TW' ? 'zh-Hant' : lang; }
   function t(key, vars) {

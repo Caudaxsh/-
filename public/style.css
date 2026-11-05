@@ -300,3 +300,19 @@ details.grp > summary { font-size: 13px; font-weight: 600; }
 .pick-row .pk-name { font-size: 13px; font-weight: 600; line-height: 1.3; }
 .pick-row .pk-sub { font-size: 11px; color: var(--muted); }
 .pick-row .pk-price { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* 設定頁的「完成」:醒目的磚紅色,並固定在畫面底部,不用再找 */
+.done-btn { background: #B8523F; border-color: #9E412F; color: #FFFCF7; font-weight: 700; }
+.done-btn:hover { background: #A84735; border-color: #8C3727; }
+.done-btn:disabled { opacity: .5; }
+.done-bar { position: sticky; bottom: 0; z-index: 6; display: flex; padding: 14px 0 12px; margin-top: 4px;
+  background: linear-gradient(to top, var(--paper) 62%, rgba(248, 244, 238, 0)); }
+.done-bar .done-btn { flex: 1; padding: 12px; font-size: 15px; border-radius: 14px; box-shadow: 0 4px 14px rgba(184, 82, 63, .28); }
+.btn.small.done-btn { padding: 5px 16px; font-size: 13px; }
+
+/* 語言:單一按鈕,中文 <-> English */
+.lang-btn { height: 30px; padding: 0 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 99px; color: var(--ink);
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color var(--t), transform var(--t); }
+.lang-btn:hover { border-color: var(--caramel); }
+.lang-btn:active { transform: scale(.96); }
+.setup-body { margin: 0 0 var(--sp-3); line-height: 1.6; }

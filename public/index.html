@@ -18,10 +18,10 @@
   <header class="topbar">
     <div class="brand">
       <img class="logo" data-asset="brand.cow_coffee_logo" alt="" draggable="false">
-      <div><b data-i18n="brand.name">牛馬薪水計</b><small>WorkHorse</small></div>
+      <div><b data-i18n="brand.name">牛馬薪水計</b><small data-i18n="brand.sub">WorkHorse</small></div>
     </div>
     <div class="tools">
-      <select class="pill-select" id="langSelect" data-i18n-aria="lang.title" data-i18n-title="lang.title"></select>
+      <button class="lang-btn" id="btnLang" type="button" data-i18n-aria="lang.title" data-i18n-title="lang.title">Language</button>
       <button class="icon-btn" id="btnShare" data-i18n-aria="btn.share" data-i18n-title="btn.share"><img class="ico" data-asset="ui_icons.share" alt=""></button>
       <button class="icon-btn" id="btnSettings" data-i18n-aria="btn.settings" data-i18n-title="btn.settings"><img class="ico" data-asset="ui_icons.settings_gear" alt=""></button>
     </div>
@@ -109,7 +109,7 @@
     <!-- 設定 -->
     <section class="view" id="view-settings">
       <div class="card">
-        <div class="row between"><h2 data-i18n="set.basic">基本設定</h2><button class="btn small" id="btnBackHome" data-i18n="set.done">完成</button></div>
+        <div class="row between"><h2 data-i18n="set.basic">基本設定</h2><button class="btn small done-btn" id="btnBackHome" data-i18n="set.done">完成</button></div>
         <label class="field"><span data-i18n="items.country">地區</span><select class="country-select" id="countrySelect2"></select></label>
         <label class="field"><span><span data-i18n="set.hourly">時薪</span> (<em data-bind="cur">NT$</em>)</span>
           <input type="number" min="0" step="0.01" inputmode="decimal" data-set="hourly"></label>
@@ -161,6 +161,7 @@
         </div>
         <input type="file" id="fileRestore" accept="application/json" hidden>
       </div>
+      <div class="done-bar"><button class="btn done-btn" id="btnDoneBottom" type="button" data-i18n="set.done">完成</button></div>
     </section>
   </main>
 </div>
@@ -239,6 +240,17 @@
   <h3 data-i18n="next.pick">選擇首頁要追蹤的目標</h3>
   <div id="nextOptions" class="pick-list" role="radiogroup"></div>
   <div class="row end"><span class="grow"></span><button type="button" class="btn" id="btnCloseNext" data-i18n="share.close">關閉</button></div>
+</dialog>
+
+<!-- 第一次進來:還在用預設的上班設定 -->
+<dialog id="setupDialog">
+  <h3 data-i18n="setup.title">先設定你的上班時間吧</h3>
+  <p id="setupBody" class="setup-body"></p>
+  <div class="row end">
+    <button type="button" class="btn" id="btnSetupLater" data-i18n="setup.later">先用預設,稍後再說</button>
+    <span class="grow"></span>
+    <button type="button" class="btn done-btn" id="btnSetupGo" data-i18n="setup.go" autofocus>去設定</button>
+  </div>
 </dialog>
 
 <!-- 補登班次 -->
