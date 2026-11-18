@@ -78,7 +78,7 @@ img { max-width: 100%; }
 .chip.break { background: #F8EBC8; color: #7B5F12; }
 .chip.done { background: #F3DAD5; color: #8A4B40; }
 .hero-label { margin-top: var(--sp-3); color: var(--muted); font-size: 12px; }
-.money { font-size: clamp(34px, 11vw, 44px); line-height: 1.12; font-weight: 700; letter-spacing: -.5px; white-space: nowrap; }
+.money { font-size: clamp(40px, 13vw, 52px); line-height: 1.08; font-weight: 700; letter-spacing: -.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .money .cur { font-size: 20px; color: var(--caramel-deep); font-weight: 650; letter-spacing: 0; margin-right: 2px; }
 .rate { color: var(--muted); font-size: 12px; margin-top: 2px; min-height: 18px; }
 .mascot { position: absolute; right: 10px; bottom: 74px; width: 64px; height: 60px; object-fit: contain; pointer-events: none; }
